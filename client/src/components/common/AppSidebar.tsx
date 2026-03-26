@@ -7,14 +7,15 @@ import {
   SidebarMenu,
   SidebarMenuItem,
   SidebarMenuButton,
+  SidebarRail,
 } from "@/components/ui/sidebar"
-import { 
-  Users, 
-  CheckSquare, 
-  FileText, 
-  MessageSquare, 
-  Mail, 
-  Calendar 
+import {
+  Users,
+  CheckSquare,
+  FileText,
+  MessageSquare,
+  Mail,
+  Calendar,
 } from "lucide-react"
 import Logo from "@/assets/img/common/Logo.png"
 
@@ -27,9 +28,9 @@ const menuItems = [
   { title: "Calendar", icon: Calendar, url: "/calendar" },
 ]
 
-export function AppSidebar() {
+const AppSidebar: React.FC = ({ ...props }: React.ComponentProps<typeof Sidebar>) => {
   return (
-    <Sidebar>
+    <Sidebar collapsible="icon" {...props}>
       <SidebarHeader className="p-4">
         <img src={Logo} alt="Logo" className="w-28" />
       </SidebarHeader>
@@ -50,6 +51,9 @@ export function AppSidebar() {
         </SidebarGroup>
       </SidebarContent>
       <SidebarFooter />
+      <SidebarRail />
     </Sidebar>
   )
 }
+
+export default AppSidebar

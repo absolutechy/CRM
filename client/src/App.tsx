@@ -1,10 +1,14 @@
 import Layout from "@/layout/Layout"
+import { Route, Routes } from "react-router"
+import { Dashboard } from "./pages"
 
 const App = () => {
   return (
     <div>
       <Layout>
-        <h1 className="text-2xl font-bold">Hello world</h1>
+        <Routes>
+          <Route path="/" element={<Dashboard />} />
+        </Routes>
       </Layout>
     </div>
   )
