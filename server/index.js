@@ -1,5 +1,5 @@
-const express = require('express');
-const morgan = require('morgan');
+import express from 'express';
+import morgan from 'morgan';
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -14,3 +14,5 @@ app.get('/', (req, res) => {
 app.listen(PORT, () => {
     console.log(`Server is listening on port ${PORT}`);
 });
+
+export default app;
