@@ -1,6 +1,6 @@
 import Layout from "@/layout/Layout"
 import { Route, Routes } from "react-router"
-import { Dashboard } from "./pages"
+import { Dashboard, Contacts, Tasks } from "./pages"
 
 const App = () => {
   return (
@@ -8,6 +8,8 @@ const App = () => {
       <Layout>
         <Routes>
           <Route path="/" element={<Dashboard />} />
+          <Route path="/contacts" element={<Contacts />} />
+          <Route path="/tasks" element={<Tasks />} />
         </Routes>
       </Layout>
     </div>
