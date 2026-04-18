@@ -18,6 +18,8 @@ import { Input } from "@/components/ui/input"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { ArrowUpDown, Search } from "lucide-react"
+import PageHeader from '@/components/common/PageHeader'
+import MainContentWrapper from '@/components/common/MainContentWrapper'
 
 // Dummy data
 const INITIAL_CONTACTS = [
@@ -51,7 +53,6 @@ const Contacts = () => {
   const [sortField, setSortField] = useState<SortField>('name')
   const [sortOrder, setSortOrder] = useState<SortOrder>('asc')
 
-  // 1. Move static derivations outside or memoize them
 const companies = useMemo<string[]>(() => 
   ['all', ...Array.from(new Set(INITIAL_CONTACTS.map(c => c.company)))], 
   [INITIAL_CONTACTS] // Only recalculate if the raw data changes
@@ -109,14 +110,9 @@ const filteredAndSortedContacts = useMemo(() => {
 }, [searchQuery, filterRole, filterStatus, filterCompany, sortField, sortOrder]);
 
   return (
-    <div className="p-6 space-y-6">
-      <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
-        <div>
-          <h2 className="text-2xl font-bold tracking-tight">Contacts</h2>
-          <p className="text-muted-foreground">Manage your customer contacts here.</p>
-        </div>
-      </div>
-
+    <>
+     <PageHeader />
+     <MainContentWrapper classname='space-y-8 px-8'>
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center justify-between">
         <div className="relative flex-1 max-w-sm">
           <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
@@ -225,7 +221,8 @@ const filteredAndSortedContacts = useMemo(() => {
           </TableBody>
         </Table>
       </div>
-    </div>
+     </MainContentWrapper>
+    </>
   )
 }
 

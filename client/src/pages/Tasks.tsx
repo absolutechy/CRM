@@ -64,8 +64,6 @@ const Tasks = () => {
     <div className="h-full flex flex-col space-y-2 max-w-full">
       <TaskHeader currentView={view} onViewChange={handleViewChange} />
 
-      <div className="h-[1px] bg-[#d9d9d9]"></div>
-
       <div className="flex-1 overflow-x-auto p-8">
         {view === "kanban" ? (
           <div className="flex gap-6 h-full items-start">
