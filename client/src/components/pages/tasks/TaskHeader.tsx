@@ -11,33 +11,33 @@ interface TaskHeaderProps {
 
 const TaskHeader = memo(({ currentView, onViewChange }: TaskHeaderProps) => {
   return (
-    <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between pb-6">
+    <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between px-8 h-14 mb-0">
       {/* Left side: Heading + View Toggles */}
       <div className="flex flex-wrap items-center gap-4 sm:gap-6">
-        <h2 className="text-2xl font-bold tracking-tight">Tasks Page</h2>
+        <h2 className="text-2xl font-bold tracking-tight">Tasks</h2>
         
-        <div className="flex items-center bg-muted/50 p-1 rounded-md border overflow-hidden">
-          <Button 
-            variant={currentView === "list" ? "secondary" : "ghost"} 
+        <div className="flex items-center gap-1 overflow-hidden">
+          <Button
+            variant="ghost"
             size="sm" 
             onClick={() => onViewChange("list")}
-            className="h-8 px-3 rounded-sm transition-all"
+            className={`h-8 px-3 py-7 rounded-none transition-all border-0 border-b-3 hover:bg-transparent ${currentView === "list" ? "border-primary" : "border-transparent text-muted-foreground"}`}
           >
             <List className="w-4 h-4 mr-2" /> List
           </Button>
           <Button 
-            variant={currentView === "kanban" ? "secondary" : "ghost"} 
+            variant="ghost"
             size="sm" 
             onClick={() => onViewChange("kanban")}
-            className="h-8 px-3 rounded-sm transition-all"
+            className={`h-8 px-3 py-7 rounded-none transition-all border-0 border-b-3 hover:bg-transparent ${currentView === "kanban" ? "border-primary" : "border-transparent text-muted-foreground"}`}
           >
             <SquareKanban className="w-4 h-4 mr-2" /> Kanban
           </Button>
           <Button 
-            variant={currentView === "table" ? "secondary" : "ghost"} 
+            variant="ghost"
             size="sm" 
             onClick={() => onViewChange("table")}
-            className="h-8 px-3 rounded-sm transition-all"
+            className={`h-8 px-3 py-7 rounded-none transition-all border-0 border-b-3 hover:bg-transparent ${currentView === "table" ? "border-primary" : "border-transparent text-muted-foreground"}`}
           >
             <TableIcon className="w-4 h-4 mr-2" /> Table
           </Button>

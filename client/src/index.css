@@ -81,6 +81,17 @@
     --sidebar-accent-foreground: oklch(0.205 0 0);
     --sidebar-border: oklch(0.922 0 0);
     --sidebar-ring: oklch(0.708 0 0);
+    /* Internal - #B97C2F & #FAF3E7 */
+    --internal: #B97C2F;
+    --internal-bg: #FAF3E7 ;
+
+    /* Marketing - #889B00 & #F9FAE6 */
+    --marketing: #889B00;
+    --marketing-bg: #F9FAE6;
+
+    /* Urgent - #8A272A & #FAF0F0 */
+    --urgent: #8A272A;
+    --urgent-bg: #FAF0F0;
 }
 
 .dark {
