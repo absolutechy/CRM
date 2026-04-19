@@ -139,3 +139,5 @@
     @apply font-sans;
     }
 }
+.ProseMirror:focus { outline: none; }
+.ProseMirror p.is-editor-empty:first-child::before { content: attr(data-placeholder); color: #adb5bd; float: left; pointer-events: none; height: 0; }

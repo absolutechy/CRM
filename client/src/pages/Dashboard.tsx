@@ -19,7 +19,7 @@ const Dashboard: React.FC = () => {
     <>
       <PageHeader />
       {/* Stats Row */}
-      <MainContentWrapper classname="space-y-8">
+      <MainContentWrapper className="space-y-8">
         <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-4">
           <StatCard
             icon={Mail}

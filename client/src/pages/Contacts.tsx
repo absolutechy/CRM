@@ -112,7 +112,7 @@ const filteredAndSortedContacts = useMemo(() => {
   return (
     <>
      <PageHeader />
-     <MainContentWrapper classname='space-y-8 px-8'>
+     <MainContentWrapper className='space-y-8 px-8'>
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center justify-between">
         <div className="relative flex-1 max-w-sm">
           <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
