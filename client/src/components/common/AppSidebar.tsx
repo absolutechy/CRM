@@ -17,7 +17,8 @@ import {
   Mail,
   Calendar,
 } from "lucide-react"
-import Logo from "@/assets/img/common/Logo.png"
+import Logo from "@/assets/img/common/logo-new.png"
+import Favicon from "@/assets/img/common/favicon.png"
 
 const menuItems = [
   { title: "Contacts", icon: Users, url: "/contacts" },
@@ -30,9 +31,30 @@ const menuItems = [
 
 const AppSidebar: React.FC = ({ ...props }: React.ComponentProps<typeof Sidebar>) => {
   return (
-    <Sidebar collapsible="icon" {...props}>
-      <SidebarHeader className="p-4">
-        <img src={Logo} alt="Logo" className="w-28" />
+    <Sidebar className="py-4" collapsible="icon" {...props}>
+      <SidebarHeader className="p-0">
+        <SidebarMenu>
+          <SidebarMenuItem>
+            <SidebarMenuButton
+              size="lg"
+              asChild
+              className="cursor-default hover:bg-transparent active:bg-transparent group-data-[collapsible=icon]:size-auto! group-data-[collapsible=icon]:w-full! group-data-[collapsible=icon]:p-0!"
+            >
+              <a href="/" className="flex items-center gap-2 group-data-[collapsible=icon]:justify-center">
+                <img
+                  src={Favicon}
+                  alt="Logo"
+                  className="hidden size-12 shrink-0 rounded-md object-contain group-data-[collapsible=icon]:block"
+                />
+                <img
+                  src={Logo}
+                  alt="Brand"
+                  className="h-18 w-auto object-contain group-data-[collapsible=icon]:hidden"
+                />
+              </a>
+            </SidebarMenuButton>
+          </SidebarMenuItem>
+        </SidebarMenu>
       </SidebarHeader>
       <SidebarContent>
         <SidebarGroup>
@@ -41,7 +63,7 @@ const AppSidebar: React.FC = ({ ...props }: React.ComponentProps<typeof Sidebar>
               <SidebarMenuItem key={item.title}>
                 <SidebarMenuButton asChild>
                   <a href={item.url} className="flex items-center gap-2">
-                    <item.icon className="h-4 w-4" />
+                    <item.icon className="h-5 w-5" />
                     <span>{item.title}</span>
                   </a>
                 </SidebarMenuButton>

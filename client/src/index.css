@@ -141,3 +141,12 @@
 }
 .ProseMirror:focus { outline: none; }
 .ProseMirror p.is-editor-empty:first-child::before { content: attr(data-placeholder); color: #adb5bd; float: left; pointer-events: none; height: 0; }
+
+/* Force the collapsed-rail width: the Tailwind utility classes for this
+   (group-data-[collapsible=icon]:w-(--sidebar-width-icon)) are shadowed by a
+   duplicate utilities layer pulled in via "shadcn/tailwind.css", so they never
+   win the cascade. Plain unlayered rules always outrank layered ones. */
+.group[data-collapsible="icon"] [data-slot="sidebar-gap"],
+.group[data-collapsible="icon"] [data-slot="sidebar-container"] {
+  width: var(--sidebar-width-icon) !important;
+}
