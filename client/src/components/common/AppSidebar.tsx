@@ -62,9 +62,9 @@ const AppSidebar: React.FC = ({ ...props }: React.ComponentProps<typeof Sidebar>
             {menuItems.map((item) => (
               <SidebarMenuItem key={item.title}>
                 <SidebarMenuButton asChild>
-                  <a href={item.url} className="flex items-center gap-2">
-                    <item.icon className="h-5 w-5" />
-                    <span>{item.title}</span>
+                  <a href={item.url} className="flex items-center gap-3 ">
+                    <item.icon className="h-6! w-6!" />
+                    <span className="text-lg">{item.title}</span>
                   </a>
                 </SidebarMenuButton>
               </SidebarMenuItem>
