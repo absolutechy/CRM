@@ -6,9 +6,11 @@ export default function Layout({ children }: { children: React.ReactNode }) {
   return (
     <SidebarProvider>
       <AppSidebar />
-      <main className="w-full">
+      {/* Fixed app header with a single scrolling content region beneath it, so
+          full-height screens (e.g. Messages) can own their own inner scrolling. */}
+      <main className="flex h-svh w-full min-w-0 flex-col overflow-hidden bg-background">
         <AppHeader />
-        <div>{children}</div>
+        <div className="min-h-0 flex-1 overflow-y-auto">{children}</div>
       </main>
     </SidebarProvider>
   )

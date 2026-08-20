@@ -16,6 +16,8 @@ obj/
 .env.test.local
 .env.production.local
 **/.env*
+# ...but example files carry no secrets and should be committed.
+!**/.env.example
 
 # Debug logs
 npm-debug.log*

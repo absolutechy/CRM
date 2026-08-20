@@ -6,7 +6,7 @@ import { SidebarTrigger } from "../ui/sidebar"
 
 const AppHeader: React.FC = () => {
   return (
-    <header className="flex items-center justify-between border-b bg-white px-6 py-4">
+    <header className="flex items-center justify-between border-b border-border bg-surface px-6 py-4">
       {/* Left - Sidebar Trigger & Search Input */}
       <div className="flex flex-1 items-center gap-4">
         <SidebarTrigger />

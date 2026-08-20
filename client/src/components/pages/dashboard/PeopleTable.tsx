@@ -1,165 +1,147 @@
-import React from "react"
-import { Phone, MessageCircle } from "lucide-react"
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
-import { Button } from "@/components/ui/button"
-import { Badge } from "@/components/ui/badge"
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table"
+import { useMemo } from "react"
+import type { ColumnDef } from "@tanstack/react-table"
+import { ArrowRight, MessageCircle, Phone } from "lucide-react"
+import { Link, useNavigate } from "react-router"
 
-interface Person {
-  id: string
-  name: string
-  email: string
-  phone: string
-  category: string
-  location: string
-  gender: string
-  avatar?: string
-}
+import DataTable from "@/components/common/DataTable"
+import { Avatar, AvatarFallback } from "@/components/ui/avatar"
+import { Badge } from "@/components/ui/badge"
+import { Button } from "@/components/ui/button"
+import { CONTACT_STATUS_BADGE, getInitials } from "@/lib/crm"
+import { useAppSelector } from "@/store/hooks"
+import { selectCompanyEntities } from "@/store/companiesSlice"
+import { selectAllContacts } from "@/store/contactsSlice"
+import type { Contact } from "@/types/crm"
 
 interface PeopleTableProps {
-  people?: Person[]
   title?: string
+  /** How many rows to show before paginating. */
+  pageSize?: number
 }
 
+/**
+ * Dashboard widget. Reads the same canonical contacts as /contacts rather than
+ * keeping its own copy, so phone numbers and companies can never drift.
+ */
 const PeopleTable: React.FC<PeopleTableProps> = ({
   title = "People",
-  people = [
-    {
-      id: "1",
-      name: "Robert Fox",
-      email: "robertfox@example.com",
-      phone: "(671) 555-0110",
-      category: "Employee",
-      location: "Austin",
-      gender: "Male",
-    },
-    {
-      id: "2",
-      name: "Cody Fisher",
-      email: "codyfisher@example.com",
-      phone: "(505) 555-0125",
-      category: "Customers",
-      location: "Orange",
-      gender: "Male",
-    },
-    {
-      id: "3",
-      name: "Albert Flores",
-      email: "albertflores@example.com",
-      phone: "(704) 555-0127",
-      category: "Customers",
-      location: "Palmerston",
-      gender: "Female",
-    },
-    {
-      id: "4",
-      name: "Floyd Miles",
-      email: "floydmiles@example.com",
-      phone: "(402) 555-0128",
-      category: "Employee",
-      location: "Fairfield",
-      gender: "Male",
-    },
-    {
-      id: "5",
-      name: "Arlene McCoy",
-      email: "arlenemccoy@example.com",
-      phone: "(219) 555-0114",
-      category: "Partners",
-      location: "Toledo",
-      gender: "Female",
-    },
-  ],
+  pageSize = 5,
 }) => {
-  const getCategoryColor = (category: string) => {
-    switch (category?.toLowerCase()) {
-      case "employee":
-        return "bg-purple-100 text-purple-800"
-      case "customers":
-        return "bg-blue-100 text-blue-800"
-      case "partners":
-        return "bg-orange-100 text-orange-800"
-      default:
-        return "bg-gray-100 text-gray-800"
-    }
-  }
+  const navigate = useNavigate()
+  const contacts = useAppSelector(selectAllContacts)
+  const companyEntities = useAppSelector(selectCompanyEntities)
 
-  const getInitials = (name: string) => {
-    return name
-      .split(" ")
-      .map((n) => n[0])
-      .join("")
-      .toUpperCase()
-  }
+  const columns = useMemo<ColumnDef<Contact>[]>(
+    () => [
+      {
+        accessorKey: "name",
+        header: "Name",
+        cell: ({ row }) => (
+          <div className="flex items-center gap-3">
+            <Avatar className="size-8">
+              <AvatarFallback className="text-xs">
+                {getInitials(row.original.name)}
+              </AvatarFallback>
+            </Avatar>
+            <Link
+              to={`/contacts/${row.original.id}`}
+              onClick={(e) => e.stopPropagation()}
+              className="text-sm font-medium text-foreground hover:text-primary hover:underline"
+            >
+              {row.original.name}
+            </Link>
+          </div>
+        ),
+      },
+      {
+        accessorKey: "email",
+        header: "Email",
+        cell: ({ row }) => (
+          <span className="text-sm text-muted-foreground">
+            {row.original.email}
+          </span>
+        ),
+      },
+      {
+        accessorKey: "phone",
+        header: "Phone",
+        cell: ({ row }) => (
+          <span className="text-sm tabular-nums text-muted-foreground">
+            {row.original.phone || "—"}
+          </span>
+        ),
+      },
+      {
+        id: "company",
+        accessorFn: (c) =>
+          c.companyId ? (companyEntities[c.companyId]?.name ?? "—") : "—",
+        header: "Company",
+        cell: ({ row, getValue }) =>
+          row.original.companyId ? (
+            <Link
+              to={`/companies/${row.original.companyId}`}
+              onClick={(e) => e.stopPropagation()}
+              className="text-sm text-muted-foreground hover:text-primary hover:underline"
+            >
+              {getValue<string>()}
+            </Link>
+          ) : (
+            <span className="text-sm text-muted-foreground">—</span>
+          ),
+      },
+      {
+        accessorKey: "status",
+        header: "Status",
+        cell: ({ row }) => (
+          <Badge variant={CONTACT_STATUS_BADGE[row.original.status]}>
+            {row.original.status}
+          </Badge>
+        ),
+      },
+      {
+        id: "actions",
+        enableHiding: false,
+        enableSorting: false,
+        header: "",
+        cell: () => (
+          <div
+            className="flex justify-end gap-1"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <Button variant="ghost" size="icon-sm" aria-label="Call">
+              <Phone />
+            </Button>
+            <Button asChild variant="ghost" size="icon-sm" aria-label="Message">
+              <Link to="/messages">
+                <MessageCircle />
+              </Link>
+            </Button>
+          </div>
+        ),
+      },
+    ],
+    [companyEntities]
+  )
 
   return (
-    <div className="rounded-lg border border-gray-200 bg-white p-6">
-      <h3 className="mb-6 text-lg font-semibold text-gray-900">{title}</h3>
+    <div className="space-y-4 rounded-lg border border-border bg-surface p-6">
+      <div className="flex items-center justify-between">
+        <h3 className="text-lg font-semibold text-foreground">{title}</h3>
+        <Button asChild variant="ghost" size="sm">
+          <Link to="/contacts">
+            View all
+            <ArrowRight />
+          </Link>
+        </Button>
+      </div>
 
-      <Table>
-        <TableHeader>
-          <TableRow>
-            <TableHead className="text-gray-600">Name</TableHead>
-            <TableHead className="text-gray-600">Email</TableHead>
-            <TableHead className="text-gray-600">Phone</TableHead>
-            <TableHead className="text-gray-600">Category</TableHead>
-            <TableHead className="text-gray-600">Location</TableHead>
-            <TableHead className="text-gray-600">Gender</TableHead>
-            <TableHead className="text-gray-600">Action</TableHead>
-          </TableRow>
-        </TableHeader>
-        <TableBody>
-          {people.map((person) => (
-            <TableRow key={person.id}>
-              <TableCell>
-                <div className="flex items-center gap-3">
-                  <Avatar className="h-8 w-8">
-                    <AvatarImage src={person.avatar} />
-                    <AvatarFallback>{getInitials(person.name)}</AvatarFallback>
-                  </Avatar>
-                  <span className="text-sm font-medium text-gray-900">
-                    {person.name}
-                  </span>
-                </div>
-              </TableCell>
-              <TableCell className="text-sm text-gray-600">
-                {person.email}
-              </TableCell>
-              <TableCell className="text-sm text-gray-600">
-                {person.phone}
-              </TableCell>
-              <TableCell>
-                <Badge className={getCategoryColor(person.category)}>
-                  {person.category}
-                </Badge>
-              </TableCell>
-              <TableCell className="text-sm text-gray-600">
-                {person.location}
-              </TableCell>
-              <TableCell className="text-sm text-gray-600">
-                {person.gender === "Male" ? "♂" : "♀"} {person.gender}
-              </TableCell>
-              <TableCell>
-                <div className="flex gap-2">
-                  <Button variant="ghost" size="icon-sm">
-                    <Phone className="h-4 w-4" />
-                  </Button>
-                  <Button variant="ghost" size="icon-sm">
-                    <MessageCircle className="h-4 w-4" />
-                  </Button>
-                </div>
-              </TableCell>
-            </TableRow>
-          ))}
-        </TableBody>
-      </Table>
+      <DataTable
+        columns={columns}
+        data={contacts}
+        onRowClick={(contact) => navigate(`/contacts/${contact.id}`)}
+        emptyMessage="No contacts yet."
+        initialPageSize={pageSize}
+      />
     </div>
   )
 }

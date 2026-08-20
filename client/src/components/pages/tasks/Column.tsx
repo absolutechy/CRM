@@ -2,25 +2,29 @@ import { Button } from "@/components/ui/button"
 import { Dot } from "lucide-react"
 import { memo, type ReactNode, useState } from "react"
 
+import type { TaskStatus } from "@/types/crm"
+
 interface ColumnProps {
   title: string
-  status: "todo" | "in-progress" | "done"
+  status: TaskStatus
   count: number
   children: ReactNode
-  onDropTask: (taskId: string, newStatus: "todo" | "in-progress" | "done") => void
-  onAddClick?: (status: "todo" | "in-progress" | "done") => void
+  onDropTask: (taskId: string, newStatus: TaskStatus) => void
+  onAddClick?: (status: TaskStatus) => void
+}
+
+/** Keyed by status rather than title so renaming a column can't break it. */
+const DOT_COLOR: Record<TaskStatus, string> = {
+  backlog: "text-muted-foreground",
+  todo: "text-info",
+  "in-progress": "text-warning",
+  done: "text-success",
 }
 
 const Column = memo(({ title, status, count, children, onDropTask, onAddClick }: ColumnProps) => {
   const [isDragOver, setIsDragOver] = useState(false);
 
-  const dotColor = title === "To Do" 
-    ? "text-slate-500" 
-    : title === "In Progress" 
-    ? "text-blue-500" 
-    : title === "Done" 
-    ? "text-green-500" 
-    : "text-gray-500";
+  const dotColor = DOT_COLOR[status];
 
   const handleDragOver = (e: React.DragEvent<HTMLDivElement>) => {
     e.preventDefault()

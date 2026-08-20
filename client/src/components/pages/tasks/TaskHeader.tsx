@@ -15,9 +15,10 @@ export type ViewType = "list" | "kanban" | "table"
 interface TaskHeaderProps {
   currentView: ViewType
   onViewChange: (view: ViewType) => void
+  onAddTask: () => void
 }
 
-const TaskHeader = memo(({ currentView, onViewChange }: TaskHeaderProps) => {
+const TaskHeader = memo(({ currentView, onViewChange, onAddTask }: TaskHeaderProps) => {
   return (
     <PageHeader>
       <div className="flex flex-col w-full gap-4 md:flex-row md:items-center md:justify-between">
@@ -56,7 +57,7 @@ const TaskHeader = memo(({ currentView, onViewChange }: TaskHeaderProps) => {
           <Button variant="outline" size="sm" className="h-9">
             <Filter className="mr-2 h-4 w-4" /> Filter
           </Button>
-          <Button size="sm" className="h-9">
+          <Button size="sm" className="h-9" onClick={onAddTask}>
             <Plus className="mr-2 h-4 w-4" /> Add Task
           </Button>
         </div>

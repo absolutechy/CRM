@@ -1,5 +1,5 @@
 import React, { Suspense, lazy } from "react"
-import { Mail, Building2, Users, CheckSquare } from "lucide-react"
+import { Building2, CheckSquare, TrendingUp, Users } from "lucide-react"
 import {
   StatCard,
   UpcomingAgenda,
@@ -9,41 +9,59 @@ import EmailChartSkeleton from "@/components/pages/dashboard/skeletons/EmailChar
 import CompaniesSectionSkeleton from "@/components/pages/dashboard/skeletons/CompaniesSectionSkeleton"
 import PageHeader from "@/components/common/PageHeader"
 import MainContentWrapper from "@/components/common/MainContentWrapper"
+import { formatCurrency } from "@/lib/crm"
+import { useAppSelector } from "@/store/hooks"
+import { selectAllCompanies } from "@/store/companiesSlice"
+import { selectContactCount } from "@/store/contactsSlice"
+import { selectPipelineSummary } from "@/store/dealsSlice"
+import { selectTaskSummary } from "@/store/tasksSlice"
 
 // Lazy load expensive chart components
 const EmailOpenRateChart = lazy(() => import("@/components/pages/dashboard/EmailOpenRateChart"))
 const CompaniesSection = lazy(() => import("@/components/pages/dashboard/CompaniesSection"))
 
 const Dashboard: React.FC = () => {
+  const contactCount = useAppSelector(selectContactCount)
+  const companies = useAppSelector(selectAllCompanies)
+  const pipeline = useAppSelector(selectPipelineSummary)
+  const tasks = useAppSelector(selectTaskSummary)
+
+  const activeCompanies = companies.filter((c) => c.status === "active").length
+
   return (
     <>
       <PageHeader />
-      {/* Stats Row */}
+      {/* Every figure below is derived from the store — nothing is hardcoded. */}
       <MainContentWrapper className="space-y-8">
         <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-4">
           <StatCard
-            icon={Mail}
-            title="Email Sent"
-            value="1,251"
-            subtitle="Mail"
+            icon={TrendingUp}
+            title="Open Pipeline"
+            value={formatCurrency(pipeline.openValue, pipeline.currency)}
+            subtitle={`${pipeline.openCount} open · ${pipeline.winRate}% win rate`}
           />
           <StatCard
             icon={Building2}
-            title="Active Company"
-            value="43"
-            subtitle="Company"
+            title="Active Companies"
+            value={String(activeCompanies)}
+            subtitle={`${companies.length} total accounts`}
           />
           <StatCard
             icon={Users}
-            title="Total Contact"
-            value="162"
-            subtitle="Contact"
+            title="Total Contacts"
+            value={String(contactCount)}
+            subtitle="Across all accounts"
           />
           <StatCard
             icon={CheckSquare}
-            title="Ongoing Task"
-            value="5"
-            subtitle="Task"
+            title="Open Tasks"
+            value={String(tasks.open)}
+            subtitle={
+              tasks.overdue > 0
+                ? `${tasks.overdue} overdue`
+                : `${tasks.done} completed`
+            }
+            tone={tasks.overdue > 0 ? "warning" : "default"}
           />
         </div>
 

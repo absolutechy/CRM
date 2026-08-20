@@ -4,6 +4,8 @@ import { Input } from "@/components/ui/input"
 import { Plus, Paperclip, Send, ChevronUp, Trash2 } from "lucide-react"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { type TaskType } from "./TaskCard"
+import { useAppSelector } from "@/store/hooks"
+import { selectAllUsers } from "@/store/usersSlice"
 
 interface TaskFormProps {
   initialData?: TaskType | null;
@@ -11,7 +13,11 @@ interface TaskFormProps {
   onCancel?: () => void;
 }
 
+/** `<input type="date">` needs YYYY-MM-DD; the store holds a full ISO string. */
+const toDateInput = (iso?: string) => (iso ? iso.slice(0, 10) : "")
+
 export default function TaskForm({ initialData, onSave, onCancel }: TaskFormProps) {
+  const users = useAppSelector(selectAllUsers)
   const [description, setDescription] = useState("")
   const [comment, setComment] = useState("")
   const [checklists, setChecklists] = useState<{ id: string, title: string, items: { id: string, text: string, completed: boolean }[] }[]>([])
@@ -30,8 +36,8 @@ export default function TaskForm({ initialData, onSave, onCancel }: TaskFormProp
     if (initialData) {
       setDescription(initialData.description || "");
       setPriority(initialData.priority || "Medium");
-      setMember(initialData.member || "");
-      setDueDate(initialData.dueDate || "");
+      setMember(initialData.assigneeId || "unassigned");
+      setDueDate(toDateInput(initialData.dueDate));
       setStatus(initialData.status || "todo");
       setChecklists(initialData.checklists || []);
       setCommentsList(initialData.comments || []);
@@ -46,8 +52,8 @@ export default function TaskForm({ initialData, onSave, onCancel }: TaskFormProp
       const isChanged = 
         description !== (initialData.description || "") ||
         priority !== (initialData.priority || "Medium") ||
-        member !== (initialData.member || "") ||
-        dueDate !== (initialData.dueDate || "") ||
+        member !== (initialData.assigneeId || "unassigned") ||
+        dueDate !== toDateInput(initialData.dueDate) ||
         status !== (initialData.status || "todo") ||
         JSON.stringify(checklists) !== JSON.stringify(initialData.checklists || []) ||
         JSON.stringify(commentsList) !== JSON.stringify(initialData.comments || []) ||
@@ -101,13 +107,13 @@ export default function TaskForm({ initialData, onSave, onCancel }: TaskFormProp
   }
 
   return (
-    <div className="flex flex-col lg:flex-row gap-8 text-gray-800 h-full pb-14">
+    <div className="flex flex-col lg:flex-row gap-8 text-foreground h-full pb-14">
       {/* Left Column (Main Content) */}
       <div className="flex-1 flex flex-col gap-6">
         <div>
           <label className="font-semibold block mb-2">Description</label>
           <textarea 
-            className="w-full min-h-[100px] bg-transparent border-none outline-none resize-none placeholder:text-gray-400"
+            className="w-full min-h-[100px] bg-transparent border-none outline-none resize-none placeholder:text-muted-foreground"
             placeholder="Add a more detailed description..."
             value={description}
             onChange={(e) => setDescription(e.target.value)}
@@ -120,10 +126,10 @@ export default function TaskForm({ initialData, onSave, onCancel }: TaskFormProp
             <div key={checklist.id} className="flex flex-col gap-3">
               <div className="flex items-center justify-between group">
                 <div className="flex items-center gap-2 flex-1 mr-4">
-                  <ChevronUp className="w-4 h-4 text-gray-500" />
+                  <ChevronUp className="w-4 h-4 text-muted-foreground" />
                   <Input 
                     value={checklist.title} 
-                    className="font-semibold px-0 border-transparent shadow-none h-auto py-1 focus-visible:border-gray-300 focus-visible:ring-0 rounded-sm"
+                    className="font-semibold px-0 border-transparent shadow-none h-auto py-1 focus-visible:border-border focus-visible:ring-0 rounded-sm"
                     onChange={(e) => setChecklists(prev => prev.map(c => c.id === checklist.id ? { ...c, title: e.target.value } : c))}
                   />
                 </div>
@@ -150,12 +156,12 @@ export default function TaskForm({ initialData, onSave, onCancel }: TaskFormProp
                             items: c.items.map(i => i.id === item.id ? { ...i, completed: e.target.checked } : i)
                           } : c))
                         }}
-                        className="w-4 h-4 rounded border-gray-300 text-primary focus:ring-primary shrink-0"
+                        className="w-4 h-4 rounded border-border text-primary focus:ring-primary shrink-0"
                       />
                       <Input 
                         value={item.text} 
                         placeholder="Checklist item..."
-                        className="flex-1 px-2 border-transparent shadow-none h-8 text-sm focus-visible:border-gray-200 focus-visible:ring-0"
+                        className="flex-1 px-2 border-transparent shadow-none h-8 text-sm focus-visible:border-border focus-visible:ring-0"
                         onChange={(e) => {
                           setChecklists(prev => prev.map(c => c.id === checklist.id ? {
                             ...c,
@@ -180,7 +186,7 @@ export default function TaskForm({ initialData, onSave, onCancel }: TaskFormProp
                 <Button 
                   variant="ghost" 
                   size="sm" 
-                  className="w-max text-gray-500 hover:text-gray-900 justify-start px-2 mt-1"
+                  className="w-max text-muted-foreground hover:text-foreground justify-start px-2 mt-1"
                   onClick={() => addChecklistItem(checklist.id)}
                 >
                   <Plus className="w-4 h-4 mr-2" /> Add Item
@@ -190,7 +196,7 @@ export default function TaskForm({ initialData, onSave, onCancel }: TaskFormProp
             </div>
           ))}
           
-          <Button variant="outline" className="w-full h-10 border-gray-300 font-medium" onClick={addChecklist}>
+          <Button variant="outline" className="w-full h-10 border-border font-medium" onClick={addChecklist}>
             <Plus className="w-4 h-4 mr-2" /> Add New Checklist
           </Button>
         </div>
@@ -202,14 +208,14 @@ export default function TaskForm({ initialData, onSave, onCancel }: TaskFormProp
           {attachments.length > 0 && (
             <div className="flex flex-wrap gap-4">
               {attachments.map((file, i) => (
-                <div key={i} className="relative w-24 h-24 border border-gray-200 rounded-md bg-gray-50 flex flex-col items-center justify-center overflow-hidden group">
+                <div key={i} className="relative w-24 h-24 border border-border rounded-md bg-background flex flex-col items-center justify-center overflow-hidden group">
                   {file.type.startsWith('image/') ? (
                     <img src={file.url} alt={file.name} className="w-full h-full object-cover" />
                   ) : (
                     <div className="flex flex-col items-center justify-center h-full w-full">
-                      <Paperclip className="h-8 w-8 text-gray-400 mb-1" />
+                      <Paperclip className="h-8 w-8 text-muted-foreground mb-1" />
                       <div className="px-1 w-full text-center">
-                         <p className="truncate text-[10px] text-gray-600 font-medium">{file.name}</p>
+                         <p className="truncate text-[10px] text-muted-foreground font-medium">{file.name}</p>
                       </div>
                     </div>
                   )}
@@ -228,9 +234,9 @@ export default function TaskForm({ initialData, onSave, onCancel }: TaskFormProp
             </div>
           )}
 
-          <label className="flex border border-dashed border-gray-300 rounded bg-gray-50/50 p-6 items-center justify-center cursor-pointer hover:bg-gray-100 transition-colors group">
-            <div className="flex flex-col items-center justify-center text-gray-500 gap-2">
-              <Paperclip className="h-6 w-6 text-gray-400 group-hover:text-primary transition-colors" />
+          <label className="flex border border-dashed border-border rounded bg-background/50 p-6 items-center justify-center cursor-pointer hover:bg-muted transition-colors group">
+            <div className="flex flex-col items-center justify-center text-muted-foreground gap-2">
+              <Paperclip className="h-6 w-6 text-muted-foreground group-hover:text-primary transition-colors" />
               <span className="text-sm font-medium">Click to Add Attachment</span>
             </div>
             <Input type="file" multiple className="hidden" onChange={handleAttachmentUpload} />
@@ -240,7 +246,7 @@ export default function TaskForm({ initialData, onSave, onCancel }: TaskFormProp
         {/* Comment Box */}
         <div className="mt-4 relative z-0">
           <Input 
-            className="w-full h-[52px] pl-4 pr-16 bg-white border-gray-300"
+            className="w-full h-[52px] pl-4 pr-16 bg-surface border-border"
             placeholder="Add Your Comment"
             value={comment}
             onChange={(e) => setComment(e.target.value)}
@@ -252,10 +258,10 @@ export default function TaskForm({ initialData, onSave, onCancel }: TaskFormProp
             }}
           />
           <div className="absolute right-2 top-1/2 -translate-y-1/2 flex items-center gap-1 z-10">
-            <Button variant="ghost" size="icon" className="h-8 w-8 text-gray-400 hover:text-gray-600">
+            <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground hover:text-muted-foreground">
               <Paperclip className="h-4 w-4" />
             </Button>
-            <Button variant="ghost" size="icon" className="h-8 w-8 text-gray-400 hover:text-gray-600" onClick={handleAddComment}>
+            <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground hover:text-muted-foreground" onClick={handleAddComment}>
               <Send className="h-4 w-4" />
             </Button>
           </div>
@@ -264,28 +270,28 @@ export default function TaskForm({ initialData, onSave, onCancel }: TaskFormProp
         {/* Activity */}
         <div className="mt-6 flex items-center justify-between">
           <h3 className="font-semibold text-[15px]">Activity</h3>
-          <Button variant="outline" size="sm" className="h-8 text-gray-600 font-medium z-0">
+          <Button variant="outline" size="sm" className="h-8 text-muted-foreground font-medium z-0">
             Hide Activity Details
           </Button>
         </div>
         <div className="flex flex-col gap-6 mt-2">
           {commentsList.length === 0 ? (
-            <div className="text-gray-500 text-sm text-center py-4">No activity yet.</div>
+            <div className="text-muted-foreground text-sm text-center py-4">No activity yet.</div>
           ) : (
             <div className="flex flex-col gap-4">
               {commentsList.map(c => (
                 <div key={c.id} className="flex gap-3">
-                  <div className="w-8 h-8 rounded-full bg-gray-200 shrink-0 flex items-center justify-center text-xs font-medium">
+                  <div className="w-8 h-8 rounded-full bg-muted shrink-0 flex items-center justify-center text-xs font-medium">
                     U
                   </div>
                   <div className="flex flex-col">
                     <div className="flex items-baseline gap-2">
                       <span className="font-medium text-sm">You</span>
-                      <span className="text-xs text-gray-500">
+                      <span className="text-xs text-muted-foreground">
                         {new Date(c.timestamp).toLocaleDateString()} {new Date(c.timestamp).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}
                       </span>
                     </div>
-                    <div className="text-sm mt-1 bg-gray-50 p-3 rounded-md border text-gray-700">
+                    <div className="text-sm mt-1 bg-background p-3 rounded-md border text-foreground">
                       {c.text}
                     </div>
                   </div>
@@ -303,14 +309,16 @@ export default function TaskForm({ initialData, onSave, onCancel }: TaskFormProp
         <div>
           <label className="font-medium text-[15px] block mb-2">Member</label>
           <Select value={member} onValueChange={setMember}>
-            <SelectTrigger className="w-full h-9 bg-transparent border-gray-300">
+            <SelectTrigger className="w-full h-9 bg-transparent border-border">
               <SelectValue placeholder="Select Member" />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="frank">Frank Edward</SelectItem>
-              <SelectItem value="james">James Wong</SelectItem>
-              <SelectItem value="sarah">Sarah Connor</SelectItem>
               <SelectItem value="unassigned">Unassigned</SelectItem>
+              {users.map((u) => (
+                <SelectItem key={u.id} value={u.id}>
+                  {u.name}
+                </SelectItem>
+              ))}
             </SelectContent>
           </Select>
         </div>
@@ -322,7 +330,7 @@ export default function TaskForm({ initialData, onSave, onCancel }: TaskFormProp
             type="date"
             value={dueDate}
             onChange={(e) => setDueDate(e.target.value)}
-            className="w-full h-9 border-gray-300"
+            className="w-full h-9 border-border"
           />
         </div>
 
@@ -330,7 +338,7 @@ export default function TaskForm({ initialData, onSave, onCancel }: TaskFormProp
         <div>
           <label className="font-medium text-[15px] block mb-2">Priority Label</label>
           <Select value={priority} onValueChange={setPriority}>
-            <SelectTrigger className="w-full h-9 bg-transparent border-gray-300">
+            <SelectTrigger className="w-full h-9 bg-transparent border-border">
               <SelectValue placeholder="Select priority" />
             </SelectTrigger>
             <SelectContent>
@@ -346,7 +354,7 @@ export default function TaskForm({ initialData, onSave, onCancel }: TaskFormProp
         <div>
           <label className="font-medium text-[15px] block mb-2">Status</label>
           <Select value={status} onValueChange={setStatus}>
-            <SelectTrigger className="w-full h-9 bg-transparent border-gray-300">
+            <SelectTrigger className="w-full h-9 bg-transparent border-border">
               <SelectValue placeholder="Select status" />
             </SelectTrigger>
             <SelectContent>
@@ -360,17 +368,17 @@ export default function TaskForm({ initialData, onSave, onCancel }: TaskFormProp
       </div>
 
       {/* Footer Actions */}
-      <div className="flex justify-end gap-3 px-7 py-5 bg-white border-t w-full lg:col-span-2 lg:absolute bottom-0 right-0 rounded-b-2xl">
+      <div className="flex justify-end gap-3 px-7 py-5 bg-surface border-t w-full lg:col-span-2 lg:absolute bottom-0 right-0 rounded-b-2xl">
         <Button variant="outline" onClick={onCancel}>Cancel</Button>
         {initialData ? (
           <Button 
             disabled={!hasChanges}
-            onClick={() => onSave?.({ description, member, dueDate, priority, status, checklists, comments: commentsList, attachments })}
+            onClick={() => onSave?.({ description, member, dueDate: dueDate ? new Date(dueDate).toISOString() : undefined, priority, status, checklists, comments: commentsList, attachments })}
           >
             Save Changes
           </Button>
         ) : (
-          <Button onClick={() => onSave?.({ description, member, dueDate, priority, status, checklists, comments: commentsList, attachments })}>Create Task</Button>
+          <Button onClick={() => onSave?.({ description, member, dueDate: dueDate ? new Date(dueDate).toISOString() : undefined, priority, status, checklists, comments: commentsList, attachments })}>Create Task</Button>
         )}
       </div>
     </div>
