@@ -1,18 +1,23 @@
-import { useCallback, useMemo, useState } from "react"
+import { useCallback, useEffect, useMemo, useState } from "react"
 import type { ColumnDef } from "@tanstack/react-table"
 import {
+  BarChart3,
   LayoutGrid,
   List,
   MoreHorizontal,
   Pencil,
+  Percent,
   Plus,
   Trash2,
+  TrendingUp,
+  Trophy,
 } from "lucide-react"
 import { Link } from "react-router"
 
 import MainContentWrapper from "@/components/common/MainContentWrapper"
 import PageHeader from "@/components/common/PageHeader"
 import DataTable from "@/components/common/DataTable"
+import StatCard from "@/components/pages/dashboard/StatCard"
 import ConfirmDeleteModal from "@/components/pages/contacts/ConfirmDeleteModal"
 import DealFormModal from "@/components/pages/deals/DealFormModal"
 import { Badge } from "@/components/ui/badge"
@@ -37,12 +42,15 @@ import { useAppDispatch, useAppSelector } from "@/store/hooks"
 import { selectCompanyEntities } from "@/store/companiesSlice"
 import { selectContactEntities } from "@/store/contactsSlice"
 import {
-  dealAdded,
-  dealRemoved,
+  changeDealStage,
+  createDeal,
   dealStageChanged,
-  dealUpdated,
+  deleteDeal,
+  fetchDeals,
   selectAllDeals,
+  selectDealsStatus,
   selectPipelineSummary,
+  updateDeal,
   type DealDraft,
 } from "@/store/dealsSlice"
 import { selectAllUsers, selectUserEntities } from "@/store/usersSlice"
@@ -56,6 +64,7 @@ const Deals = () => {
 
   const deals = useAppSelector(selectAllDeals)
   const summary = useAppSelector(selectPipelineSummary)
+  const status = useAppSelector(selectDealsStatus)
   const contacts = useAppSelector(selectContactEntities)
   const companies = useAppSelector(selectCompanyEntities)
   const users = useAppSelector(selectAllUsers)
@@ -67,6 +76,19 @@ const Deals = () => {
   const [formOpen, setFormOpen] = useState(false)
   const [editing, setEditing] = useState<Deal | null>(null)
   const [pendingDelete, setPendingDelete] = useState<Deal | null>(null)
+  const [isSaving, setIsSaving] = useState(false)
+  const [isDeleting, setIsDeleting] = useState(false)
+
+  useEffect(() => {
+    dispatch(
+      fetchDeals({
+        ...(stageFilter !== "all" && { stage: stageFilter as DealStage }),
+        ...(ownerFilter !== "all" && {
+          ownerId: ownerFilter === "unassigned" ? "" : ownerFilter,
+        }),
+      })
+    )
+  }, [dispatch, stageFilter, ownerFilter])
 
   const ownerName = useCallback(
     (id: string | null) =>
@@ -235,39 +257,68 @@ const Deals = () => {
 
   const byStage = (stage: DealStage) => visible.filter((d) => d.stage === stage)
 
+  const handleSave = async (draft: DealDraft) => {
+    setIsSaving(true)
+    try {
+      if (editing) {
+        await dispatch(updateDeal({ id: editing.id, changes: draft }))
+      } else {
+        await dispatch(createDeal(draft))
+      }
+    } finally {
+      setIsSaving(false)
+      setFormOpen(false)
+      setEditing(null)
+    }
+  }
+
   return (
     <>
       <PageHeader />
       <MainContentWrapper className="space-y-6 px-8">
         {/* Pipeline summary */}
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-          <div className="rounded-lg border border-border bg-surface p-5">
-            <p className="text-xs text-muted-foreground">Open pipeline</p>
-            <p className="mt-1 text-2xl font-bold tabular-nums text-foreground">
-              {formatCurrency(summary.openValue, summary.currency)}
-            </p>
-          </div>
-          <div className="rounded-lg border border-border bg-surface p-5">
-            <p className="text-xs text-muted-foreground">Weighted forecast</p>
-            <p className="mt-1 text-2xl font-bold tabular-nums text-foreground">
-              {formatCurrency(summary.weightedValue, summary.currency)}
-            </p>
-          </div>
-          <div className="rounded-lg border border-border bg-surface p-5">
-            <p className="text-xs text-muted-foreground">Closed won</p>
-            <p className="mt-1 text-2xl font-bold tabular-nums text-foreground">
-              {formatCurrency(summary.wonValue, summary.currency)}
-            </p>
-          </div>
-          <div className="rounded-lg border border-border bg-surface p-5">
-            <p className="text-xs text-muted-foreground">Win rate</p>
-            <p className="mt-1 text-2xl font-bold tabular-nums text-foreground">
-              {summary.winRate}%
-            </p>
-          </div>
+          <StatCard
+            icon={TrendingUp}
+            title="Open pipeline"
+            value={formatCurrency(summary.openValue, summary.currency)}
+            subtitle="Open deals value"
+            tone="default"
+            sparkline={[14, 16, 15, 19, 18, 22, 21, 25, 24, 27, 29]}
+          />
+          <StatCard
+            icon={BarChart3}
+            title="Weighted forecast"
+            value={formatCurrency(summary.weightedValue, summary.currency)}
+            subtitle="Probability-adjusted"
+            tone="info"
+            sparkline={[10, 12, 11, 14, 13, 16, 15, 18, 17, 19, 21]}
+          />
+          <StatCard
+            icon={Trophy}
+            title="Closed won"
+            value={formatCurrency(summary.wonValue, summary.currency)}
+            subtitle={`${summary.wonCount} won deals`}
+            tone="success"
+            sparkline={[5, 6, 8, 7, 9, 10, 12, 11, 13, 14, 16]}
+          />
+          <StatCard
+            icon={Percent}
+            title="Win rate"
+            value={`${summary.winRate}%`}
+            subtitle="Won vs lost"
+            tone={summary.winRate < 40 ? "warning" : "default"}
+            sparkline={[30, 35, 33, 40, 38, 42, 45, 43, 48, 46, 50]}
+          />
         </div>
 
         {/* View toggle */}
+        {status === "loading" && deals.length === 0 ? (
+          <div className="rounded-lg border border-border bg-surface p-8 text-center text-sm text-muted-foreground">
+            Loading deals…
+          </div>
+        ) : (
+          <>
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div className="flex w-fit items-center gap-1 rounded-md border border-border bg-surface p-1">
             {(["pipeline", "list"] as const).map((v) => (
@@ -370,7 +421,7 @@ const Deals = () => {
                   onDrop={(e) => {
                     e.preventDefault()
                     const id = e.dataTransfer.getData("text/plain")
-                    if (id) dispatch(dealStageChanged({ id, stage }))
+                    if (id) dispatch(changeDealStage({ id, stage }))
                   }}
                   className="flex w-72 shrink-0 flex-col rounded-lg border border-border bg-surface"
                 >
@@ -432,31 +483,34 @@ const Deals = () => {
             })}
           </div>
         )}
+        </>
+        )}
       </MainContentWrapper>
 
       <DealFormModal
         isOpen={formOpen}
         deal={editing}
+        isLoading={isSaving}
         onClose={() => {
           setFormOpen(false)
           setEditing(null)
         }}
-        onSave={(draft: DealDraft) => {
-          if (editing) {
-            dispatch(dealUpdated({ id: editing.id, changes: draft }))
-          } else {
-            dispatch(dealAdded(draft))
-          }
-          setFormOpen(false)
-          setEditing(null)
-        }}
+        onSave={handleSave}
       />
 
       <ConfirmDeleteModal
         isOpen={!!pendingDelete}
+        isLoading={isDeleting}
         onClose={() => setPendingDelete(null)}
-        onConfirm={() => {
-          if (pendingDelete) dispatch(dealRemoved(pendingDelete.id))
+        onConfirm={async () => {
+          if (!pendingDelete) return
+          setIsDeleting(true)
+          try {
+            await dispatch(deleteDeal(pendingDelete.id))
+          } finally {
+            setIsDeleting(false)
+            setPendingDelete(null)
+          }
         }}
         title="Delete deal"
         description={`Delete "${pendingDelete?.title}"? This cannot be undone.`}

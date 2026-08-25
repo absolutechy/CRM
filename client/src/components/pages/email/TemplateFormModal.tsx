@@ -14,6 +14,7 @@ interface TemplateFormModalProps {
   template?: EmailTemplate | null
   onClose: () => void
   onSave: (draft: TemplateDraft) => void
+  isLoading?: boolean
 }
 
 const emptyDraft = (): TemplateDraft => ({
@@ -28,6 +29,7 @@ const TemplateFormModal: React.FC<TemplateFormModalProps> = ({
   template,
   onClose,
   onSave,
+  isLoading = false,
 }) => {
   const [draft, setDraft] = useState<TemplateDraft>(emptyDraft)
 
@@ -125,7 +127,7 @@ const TemplateFormModal: React.FC<TemplateFormModalProps> = ({
           <Button type="button" variant="outline" onClick={onClose}>
             Cancel
           </Button>
-          <Button type="submit" disabled={!canSave}>
+          <Button type="submit" disabled={!canSave} loading={isLoading}>
             {template ? "Save changes" : "Create template"}
           </Button>
         </div>

@@ -19,6 +19,7 @@ interface CompanyFormModalProps {
   onClose: () => void
   onSave: (draft: CompanyDraft) => void
   company?: Company | null
+  isLoading?: boolean
 }
 
 const STATUSES: CompanyStatus[] = ["active", "lead", "churned"]
@@ -36,6 +37,7 @@ const CompanyFormModal: React.FC<CompanyFormModalProps> = ({
   onClose,
   onSave,
   company,
+  isLoading = false,
 }) => {
   const [draft, setDraft] = useState<CompanyDraft>(emptyDraft)
 
@@ -131,7 +133,7 @@ const CompanyFormModal: React.FC<CompanyFormModalProps> = ({
           <Button type="button" variant="outline" onClick={onClose}>
             Cancel
           </Button>
-          <Button type="submit" disabled={!canSave}>
+          <Button type="submit" disabled={!canSave} loading={isLoading}>
             {company ? "Save changes" : "Create company"}
           </Button>
         </div>

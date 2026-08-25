@@ -38,8 +38,24 @@ model User {
   uploads        Document[]     @relation("DocumentUploader")
   activities     Activity[]     @relation("ActivityActor")
   refreshTokens  RefreshToken[]
+  notifications  Notification[]
 
   @@map("users")
+}
+
+/// In-app notification, created by the automation engine (and future system
+/// events). Read/unread drives the header bell.
+model Notification {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  title     String
+  body      String   @default("")
+  readAt    DateTime?
+  createdAt DateTime @default(now())
+
+  @@index([userId, readAt])
+  @@map("notifications")
 }
 
 model RefreshToken {
@@ -167,6 +183,7 @@ model Lead {
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+  deletedAt DateTime?
 
   activities      Activity[]
   tasks           Task[]
@@ -177,6 +194,7 @@ model Lead {
   @@index([status])
   @@index([ownerId])
   @@index([source])
+  @@index([deletedAt])
   @@map("leads")
 }
 

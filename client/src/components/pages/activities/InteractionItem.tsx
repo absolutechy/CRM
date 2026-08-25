@@ -20,6 +20,14 @@ import type { TimelineEntry } from "@/store/selectors"
 import type { Activity } from "@/types/crm"
 import { isInteractionType } from "@/types/crm"
 
+/** Backend returns actor as { id, name }; legacy/seed data uses a string. */
+export const actorName = (activity: Activity): string => {
+  const actor = activity.actor as unknown
+  return typeof actor === "object" && actor !== null && "name" in actor
+    ? String((actor as { name: string }).name)
+    : String(actor ?? "")
+}
+
 interface InteractionItemProps {
   entry: TimelineEntry
   /** Shown when the timeline spans multiple contacts (company rollup). */
@@ -118,7 +126,7 @@ const InteractionItem: React.FC<InteractionItemProps> = ({
         <p className="mt-0.5 text-xs text-muted-foreground">
           {formatDateTime(activity.scheduledAt ?? activity.at)}
           {duration && ` · ${duration}`}
-          {` · ${activity.actor}`}
+          {` · ${actorName(activity)}`}
           {contactName && contactId && (
             <>
               {" · "}

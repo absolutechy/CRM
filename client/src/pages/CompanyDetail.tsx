@@ -1,17 +1,22 @@
-import { useMemo } from "react"
-import { ArrowLeft, Building2, Globe, MapPin, Users } from "lucide-react"
+import { useEffect, useMemo } from "react"
+import { ArrowLeft, Building2, FolderOpen, Globe, MapPin, Users, Wallet } from "lucide-react"
 import { Link, useNavigate, useParams } from "react-router"
 
 import MainContentWrapper from "@/components/common/MainContentWrapper"
 import DataTable from "@/components/common/DataTable"
+import StatCard from "@/components/pages/dashboard/StatCard"
 import InteractionTimeline from "@/components/pages/activities/InteractionTimeline"
 import { createContactColumns } from "@/components/pages/contacts/columns"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { COMPANY_STATUS_BADGE, formatCurrency } from "@/lib/crm"
-import { useAppSelector } from "@/store/hooks"
-import { selectCompanyById } from "@/store/companiesSlice"
+import { useAppDispatch, useAppSelector } from "@/store/hooks"
+import {
+  fetchCompany,
+  selectCompanyById,
+  selectCompaniesStatus,
+} from "@/store/companiesSlice"
 import { selectContactsByCompanyId } from "@/store/contactsSlice"
 import { selectDealsByCompanyId } from "@/store/dealsSlice"
 import { selectTimelineForCompany } from "@/store/selectors"
@@ -20,8 +25,10 @@ import type { RootState } from "@/store"
 const CompanyDetail = () => {
   const { id = "" } = useParams()
   const navigate = useNavigate()
+  const dispatch = useAppDispatch()
 
   const company = useAppSelector((s: RootState) => selectCompanyById(s, id))
+  const status = useAppSelector(selectCompaniesStatus)
   const contacts = useAppSelector((s: RootState) =>
     selectContactsByCompanyId(s, id)
   )
@@ -29,6 +36,12 @@ const CompanyDetail = () => {
   const timeline = useAppSelector((s: RootState) =>
     selectTimelineForCompany(s, id)
   )
+
+  useEffect(() => {
+    if (id) {
+      dispatch(fetchCompany(id))
+    }
+  }, [dispatch, id])
 
   const columns = useMemo(
     () =>
@@ -41,6 +54,14 @@ const CompanyDetail = () => {
   )
 
   const totalValue = orders.reduce((sum, o) => sum + o.amount, 0)
+
+  if (status === "loading" && !company) {
+    return (
+      <MainContentWrapper className="px-8 py-16 text-center text-sm text-muted-foreground">
+        Loading company…
+      </MainContentWrapper>
+    )
+  }
 
   if (!company) {
     return (
@@ -117,29 +138,34 @@ const CompanyDetail = () => {
 
           <TabsContent value="overview" className="mt-6">
             <div className="grid gap-4 sm:grid-cols-3">
-              <div className="rounded-lg border border-border bg-surface p-5">
-                <p className="text-xs text-muted-foreground">Contacts</p>
-                <p className="mt-1 flex items-center gap-2 text-2xl font-bold text-foreground">
-                  <Users className="size-5 text-primary-700" />
-                  {contacts.length}
-                </p>
-              </div>
-              <div className="rounded-lg border border-border bg-surface p-5">
-                <p className="text-xs text-muted-foreground">Total deal value</p>
-                <p className="mt-1 text-2xl font-bold text-foreground">
-                  {formatCurrency(totalValue)}
-                </p>
-              </div>
-              <div className="rounded-lg border border-border bg-surface p-5">
-                <p className="text-xs text-muted-foreground">Open orders</p>
-                <p className="mt-1 text-2xl font-bold text-foreground">
-                  {
-                    orders.filter(
-                      (o) => o.stage !== "Won" && o.stage !== "Lost"
-                    ).length
-                  }
-                </p>
-              </div>
+              <StatCard
+                icon={Users}
+                title="Contacts"
+                value={String(contacts.length)}
+                subtitle="People at this account"
+                tone="default"
+                sparkline={[4, 5, 5, 6, 7, 7, 8, 8, 9, 10, 10]}
+              />
+              <StatCard
+                icon={Wallet}
+                title="Total deal value"
+                value={formatCurrency(totalValue)}
+                subtitle="All deals combined"
+                tone="success"
+                sparkline={[10, 12, 11, 15, 14, 18, 17, 21, 20, 24, 26]}
+              />
+              <StatCard
+                icon={FolderOpen}
+                title="Open orders"
+                value={String(
+                  orders.filter(
+                    (o) => o.stage !== "Won" && o.stage !== "Lost"
+                  ).length
+                )}
+                subtitle="Not yet closed"
+                tone="info"
+                sparkline={[3, 4, 3, 5, 4, 6, 5, 7, 6, 7, 8]}
+              />
             </div>
           </TabsContent>
 

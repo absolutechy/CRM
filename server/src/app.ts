@@ -8,7 +8,21 @@ import rateLimit from "express-rate-limit"
 import { env, isDev } from "@/config/env"
 import { logger } from "@/lib/logger"
 import { errorHandler, notFoundHandler } from "@/middleware/error"
+import { authRouter } from "@/routes/auth"
 import { healthRouter } from "@/routes/health"
+import { leadsRouter } from "@/routes/leads"
+import { contactsRouter } from "@/routes/contacts"
+import { companiesRouter } from "@/routes/companies"
+import { dealsRouter } from "@/routes/deals"
+import { activitiesRouter } from "@/routes/activities"
+import { tasksRouter } from "@/routes/tasks"
+import { documentsRouter } from "@/routes/documents"
+import { usersRouter } from "@/routes/users"
+import { campaignsRouter } from "@/routes/campaigns"
+import { emailTemplatesRouter } from "@/routes/emailTemplates"
+import { emailsRouter } from "@/routes/emails"
+import { automationsRouter } from "@/routes/automations"
+import { notificationsRouter } from "@/routes/notifications"
 
 export const createApp = (): Express => {
   const app = express()
@@ -51,6 +65,20 @@ export const createApp = (): Express => {
   )
 
   app.use("/api/health", healthRouter)
+  app.use("/api/auth", authRouter)
+  app.use("/api/leads", leadsRouter)
+  app.use("/api/contacts", contactsRouter)
+  app.use("/api/companies", companiesRouter)
+  app.use("/api/deals", dealsRouter)
+  app.use("/api/activities", activitiesRouter)
+  app.use("/api/tasks", tasksRouter)
+  app.use("/api/documents", documentsRouter)
+  app.use("/api/users", usersRouter)
+  app.use("/api/campaigns", campaignsRouter)
+  app.use("/api/email-templates", emailTemplatesRouter)
+  app.use("/api/emails", emailsRouter)
+  app.use("/api/automations", automationsRouter)
+  app.use("/api/notifications", notificationsRouter)
 
   app.use(notFoundHandler)
   app.use(errorHandler)

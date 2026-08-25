@@ -11,4 +11,14 @@ export default defineConfig({
       "@": path.resolve(__dirname, "./src"),
     },
   },
+  server: {
+    // Dev traffic goes through the Vite proxy to the API, avoiding CORS and
+    // matching the browser's origin (cookies with sameSite=lax just work).
+    proxy: {
+      "/api": {
+        target: "http://localhost:3000",
+        changeOrigin: true,
+      },
+    },
+  },
 })

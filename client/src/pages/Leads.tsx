@@ -1,10 +1,11 @@
-import { useCallback, useMemo, useState } from "react"
-import { LayoutGrid, List, Plus } from "lucide-react"
+import { useCallback, useEffect, useMemo, useState } from "react"
+import { LayoutGrid, List, Plus, UserPlus, UserX, Wallet } from "lucide-react"
 import { useNavigate } from "react-router"
 
 import MainContentWrapper from "@/components/common/MainContentWrapper"
 import PageHeader from "@/components/common/PageHeader"
 import DataTable from "@/components/common/DataTable"
+import StatCard from "@/components/pages/dashboard/StatCard"
 import ConfirmDeleteModal from "@/components/pages/contacts/ConfirmDeleteModal"
 import ConvertLeadModal, {
   type ConvertOptions,
@@ -24,17 +25,19 @@ import { LEAD_SOURCE_LABEL, LEAD_STATUS_LABEL, formatCurrency } from "@/lib/crm"
 import { cn } from "@/lib/utils"
 import { useAppDispatch, useAppSelector } from "@/store/hooks"
 import {
-  leadAdded,
-  leadRemoved,
-  leadUpdated,
+  createLead,
+  deleteLead,
+  fetchLeads,
   selectAllLeads,
   selectLeadPipelineValue,
-  type LeadDraft,
+  selectLeadsStatus,
+  updateLead,
 } from "@/store/leadsSlice"
 import { selectAllUsers, selectUserEntities } from "@/store/usersSlice"
 import { useConvertLead } from "@/components/pages/leads/useConvertLead"
 import type { Lead, LeadStatus } from "@/types/crm"
 import { LEAD_SOURCES, LEAD_STATUSES } from "@/types/crm"
+import { Spinner } from "@/components/ui/spinner"
 
 type View = "list" | "pipeline"
 
@@ -47,6 +50,7 @@ const Leads = () => {
   const users = useAppSelector(selectAllUsers)
   const userEntities = useAppSelector(selectUserEntities)
   const pipelineValue = useAppSelector(selectLeadPipelineValue)
+  const status = useAppSelector(selectLeadsStatus)
 
   const [view, setView] = useState<View>("list")
   const [statusFilter, setStatusFilter] = useState("all")
@@ -57,6 +61,22 @@ const Leads = () => {
   const [editing, setEditing] = useState<Lead | null>(null)
   const [converting, setConverting] = useState<Lead | null>(null)
   const [pendingDelete, setPendingDelete] = useState<Lead | null>(null)
+  const [isSaving, setIsSaving] = useState(false)
+  const [isConverting, setIsConverting] = useState(false)
+  const [isDeleting, setIsDeleting] = useState(false)
+
+  // Fetch leads whenever the filters change.
+  useEffect(() => {
+    dispatch(
+      fetchLeads({
+        ...(statusFilter !== "all" && { status: statusFilter as LeadStatus }),
+        ...(sourceFilter !== "all" && { source: sourceFilter as Lead["source"] }),
+        ...(ownerFilter !== "all" && {
+          ownerId: ownerFilter === "unassigned" ? null : ownerFilter,
+        }),
+      })
+    )
+  }, [dispatch, statusFilter, sourceFilter, ownerFilter])
 
   const ownerName = useCallback(
     (ownerId: string | null) =>
@@ -92,19 +112,32 @@ const Leads = () => {
     [ownerName]
   )
 
-  const handleSave = (draft: LeadDraft) => {
-    if (editing) {
-      dispatch(leadUpdated({ id: editing.id, changes: draft }))
-    } else {
-      dispatch(leadAdded(draft))
+  const handleSave = async (draft: Parameters<typeof createLead>[0]) => {
+    setIsSaving(true)
+    try {
+      if (editing) {
+        await dispatch(updateLead({ id: editing.id, changes: draft }))
+      } else {
+        await dispatch(createLead(draft))
+      }
+    } finally {
+      setIsSaving(false)
+      setFormOpen(false)
+      setEditing(null)
     }
-    setFormOpen(false)
-    setEditing(null)
   }
 
-  const handleConvert = (lead: Lead, options: ConvertOptions) => {
-    const { contactId } = convertLead(lead, options)
-    navigate(`/contacts/${contactId}`)
+  const handleConvert = async (lead: Lead, options: ConvertOptions) => {
+    setIsConverting(true)
+    try {
+      const result = await convertLead(lead, options)
+      if (result.contactId) {
+        navigate(`/contacts/${result.contactId}`)
+      }
+    } finally {
+      setIsConverting(false)
+      setConverting(null)
+    }
   }
 
   const unassigned = leads.filter((l) => !l.ownerId).length
@@ -115,33 +148,34 @@ const Leads = () => {
       <MainContentWrapper className="space-y-6 px-8">
         {/* Pipeline summary */}
         <div className="grid gap-4 sm:grid-cols-3">
-          <div className="rounded-lg border border-border bg-surface p-5">
-            <p className="text-xs text-muted-foreground">Open leads</p>
-            <p className="mt-1 text-2xl font-bold text-foreground">
-              {
-                leads.filter(
-                  (l) => l.status !== "converted" && l.status !== "unqualified"
-                ).length
-              }
-            </p>
-          </div>
-          <div className="rounded-lg border border-border bg-surface p-5">
-            <p className="text-xs text-muted-foreground">Pipeline value</p>
-            <p className="mt-1 text-2xl font-bold text-foreground">
-              {formatCurrency(pipelineValue)}
-            </p>
-          </div>
-          <div className="rounded-lg border border-border bg-surface p-5">
-            <p className="text-xs text-muted-foreground">Unassigned</p>
-            <p
-              className={cn(
-                "mt-1 text-2xl font-bold",
-                unassigned > 0 ? "text-warning-strong" : "text-foreground"
-              )}
-            >
-              {unassigned}
-            </p>
-          </div>
+          <StatCard
+            icon={UserPlus}
+            title="Open leads"
+            value={String(
+              leads.filter(
+                (l) => l.status !== "converted" && l.status !== "unqualified"
+              ).length
+            )}
+            subtitle="Active pipeline"
+            tone="default"
+            sparkline={[10, 12, 11, 14, 13, 16, 15, 18, 17, 20, 22]}
+          />
+          <StatCard
+            icon={Wallet}
+            title="Pipeline value"
+            value={formatCurrency(pipelineValue)}
+            subtitle="Estimated value"
+            tone="success"
+            sparkline={[20, 24, 22, 28, 26, 30, 29, 34, 32, 38, 40]}
+          />
+          <StatCard
+            icon={UserX}
+            title="Unassigned"
+            value={String(unassigned)}
+            subtitle={unassigned > 0 ? "Needs an owner" : "All assigned"}
+            tone={unassigned > 0 ? "warning" : "default"}
+            sparkline={[5, 6, 5, 7, 6, 8, 7, 6, 5, 4, 3]}
+          />
         </div>
 
         {/* View toggle */}
@@ -168,7 +202,9 @@ const Leads = () => {
           ))}
         </div>
 
-        {view === "list" ? (
+        {status === "loading" && leads.length === 0 ? (
+          <Spinner className="size-10" />
+        ) : view === "list" ? (
           <DataTable
             columns={columns}
             data={visible}
@@ -239,7 +275,7 @@ const Leads = () => {
             leads={visible}
             ownerName={ownerName}
             onStatusChange={(id, status: LeadStatus) =>
-              dispatch(leadUpdated({ id, changes: { status } }))
+              dispatch(updateLead({ id, changes: { status } }))
             }
           />
         )}
@@ -248,6 +284,7 @@ const Leads = () => {
       <LeadFormModal
         isOpen={formOpen}
         lead={editing}
+        isLoading={isSaving}
         onClose={() => {
           setFormOpen(false)
           setEditing(null)
@@ -258,15 +295,24 @@ const Leads = () => {
       <ConvertLeadModal
         isOpen={!!converting}
         lead={converting}
+        isLoading={isConverting}
         onClose={() => setConverting(null)}
         onConvert={handleConvert}
       />
 
       <ConfirmDeleteModal
         isOpen={!!pendingDelete}
+        isLoading={isDeleting}
         onClose={() => setPendingDelete(null)}
-        onConfirm={() => {
-          if (pendingDelete) dispatch(leadRemoved(pendingDelete.id))
+        onConfirm={async () => {
+          if (!pendingDelete) return
+          setIsDeleting(true)
+          try {
+            await dispatch(deleteLead(pendingDelete.id))
+          } finally {
+            setIsDeleting(false)
+            setPendingDelete(null)
+          }
         }}
         title="Delete lead"
         description={`Delete ${pendingDelete?.name}? Their interaction history will be removed too.`}

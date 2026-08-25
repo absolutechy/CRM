@@ -14,20 +14,18 @@ import {
 } from "@/components/ui/select"
 import { formatFileSize } from "@/lib/crm"
 import { cn } from "@/lib/utils"
-import { uploadDocument } from "@/services/documentService"
-import { useAppSelector } from "@/store/hooks"
+import { uploadDocumentThunk } from "@/store/documentsSlice"
+import { useAppDispatch, useAppSelector } from "@/store/hooks"
 import { selectAllCompanies } from "@/store/companiesSlice"
 import { selectAllContacts } from "@/store/contactsSlice"
 import { selectAllLeads } from "@/store/leadsSlice"
-import type { DocumentDraft } from "@/store/documentsSlice"
-import { CURRENT_USER_ID } from "@/store/usersSlice"
+import { selectCurrentUser } from "@/store/authSlice"
 import type { DocumentCategory } from "@/types/crm"
 import { DOCUMENT_CATEGORIES } from "@/types/crm"
 
 interface DocumentUploadModalProps {
   isOpen: boolean
   onClose: () => void
-  onUpload: (draft: DocumentDraft) => void
   /** Pre-links the upload when opened from a record's Documents tab. */
   fixedLink?: { type: "contact" | "company" | "lead"; id: string }
 }
@@ -35,18 +33,20 @@ interface DocumentUploadModalProps {
 const DocumentUploadModal: React.FC<DocumentUploadModalProps> = ({
   isOpen,
   onClose,
-  onUpload,
   fixedLink,
 }) => {
+  const dispatch = useAppDispatch()
   const contacts = useAppSelector(selectAllContacts)
   const companies = useAppSelector(selectAllCompanies)
   const leads = useAppSelector(selectAllLeads)
+  const currentUser = useAppSelector(selectCurrentUser)
 
   const inputRef = useRef<HTMLInputElement>(null)
   const [files, setFiles] = useState<File[]>([])
   const [category, setCategory] = useState<DocumentCategory>("proposal")
   const [linkKey, setLinkKey] = useState("")
   const [dragging, setDragging] = useState(false)
+  const [uploading, setUploading] = useState(false)
   const [notice, setNotice] = useState<string | null>(null)
 
   useEffect(() => {
@@ -54,7 +54,7 @@ const DocumentUploadModal: React.FC<DocumentUploadModalProps> = ({
     setFiles([])
     setCategory("proposal")
     setNotice(null)
-    setLinkKey(fixedLink ? `${fixedLink.type}:${fixedLink.id}` : "")
+    setLinkKey(fixedLink ? `${fixedLink.type}:${fixedLink.id}` : "none")
   }, [isOpen, fixedLink])
 
   const linkOptions = [
@@ -64,36 +64,49 @@ const DocumentUploadModal: React.FC<DocumentUploadModalProps> = ({
   ]
 
   const addFiles = (list: FileList | null) => {
-    if (list) setFiles((prev) => [...prev, ...Array.from(list)])
+    if (!list) return
+    const incoming = Array.from(list)
+    setFiles((prev) => {
+      const seen = new Set(prev.map((f) => `${f.name}-${f.size}`))
+      const fresh = incoming.filter((f) => {
+        const key = `${f.name}-${f.size}`
+        if (seen.has(key)) return false
+        seen.add(key)
+        return true
+      })
+      return fresh.length ? [...prev, ...fresh] : prev
+    })
   }
 
-  const canUpload = files.length > 0 && linkKey !== ""
+  const canUpload = files.length > 0
 
   const handleUpload = async () => {
-    const [type, id] = linkKey.split(":")
-    for (const file of files) {
-      // Metadata only — the service records nothing yet, storage is backend work.
-      const res = await uploadDocument({
-        file,
-        category,
-        contactId: type === "contact" ? id : null,
-        companyId: type === "company" ? id : null,
-        leadId: type === "lead" ? id : null,
-        uploadedById: CURRENT_USER_ID,
-      })
-      onUpload({
-        name: file.name,
-        mimeType: file.type || "application/octet-stream",
-        sizeBytes: file.size,
-        category,
-        contactId: type === "contact" ? id : null,
-        companyId: type === "company" ? id : null,
-        leadId: type === "lead" ? id : null,
-        uploadedById: CURRENT_USER_ID,
-      })
-      setNotice(res.message)
+    if (!canUpload || uploading) return
+    const [type = "", id = ""] = linkKey ? linkKey.split(":") : []
+    setUploading(true)
+    setNotice(null)
+    try {
+      for (const file of files) {
+        await dispatch(
+          uploadDocumentThunk({
+            file,
+            category,
+            contactId: type === "contact" ? id : null,
+            companyId: type === "company" ? id : null,
+            leadId: type === "lead" ? id : null,
+            uploadedById: currentUser?.id ?? "",
+          })
+        ).unwrap()
+      }
+      setFiles([])
+      onClose()
+    } catch (error) {
+      setNotice(
+        error instanceof Error ? error.message : "Upload failed. Please try again."
+      )
+    } finally {
+      setUploading(false)
     }
-    setFiles([])
   }
 
   return (
@@ -164,6 +177,7 @@ const DocumentUploadModal: React.FC<DocumentUploadModalProps> = ({
                   variant="ghost"
                   size="icon-sm"
                   aria-label={`Remove ${file.name}`}
+                  disabled={uploading}
                   onClick={() => setFiles((f) => f.filter((_, x) => x !== i))}
                 >
                   <X />
@@ -179,6 +193,7 @@ const DocumentUploadModal: React.FC<DocumentUploadModalProps> = ({
             <Select
               value={category}
               onValueChange={(v) => setCategory(v as DocumentCategory)}
+              disabled={uploading}
             >
               <SelectTrigger id="doc-category" className="w-full">
                 <SelectValue />
@@ -194,16 +209,17 @@ const DocumentUploadModal: React.FC<DocumentUploadModalProps> = ({
           </div>
 
           <div className="space-y-1.5">
-            <Label htmlFor="doc-link">Linked record *</Label>
+            <Label htmlFor="doc-link">Linked record</Label>
             <Select
               value={linkKey}
               onValueChange={setLinkKey}
-              disabled={!!fixedLink}
+              disabled={!!fixedLink || uploading}
             >
               <SelectTrigger id="doc-link" className="w-full">
-                <SelectValue placeholder="Select a record" />
+                <SelectValue placeholder="No linked record" />
               </SelectTrigger>
               <SelectContent>
+                <SelectItem value="none">No linked record</SelectItem>
                 {linkOptions.map((o) => (
                   <SelectItem key={o.key} value={o.key}>
                     {o.label}
@@ -211,10 +227,13 @@ const DocumentUploadModal: React.FC<DocumentUploadModalProps> = ({
                 ))}
               </SelectContent>
             </Select>
+            <p className="text-xs text-muted-foreground">
+              Optionally link to a contact, company or lead.
+            </p>
           </div>
         </div>
 
-        {/* Honest backend state */}
+        {/* Error / status banner */}
         {notice && (
           <div className="flex items-start gap-2.5 rounded-lg border border-border bg-info-soft p-3">
             <Info className="mt-0.5 size-4 shrink-0 text-info-strong" />
@@ -223,11 +242,15 @@ const DocumentUploadModal: React.FC<DocumentUploadModalProps> = ({
         )}
 
         <div className="flex justify-end gap-2 border-t border-border pt-4">
-          <Button variant="outline" onClick={onClose}>
+          <Button variant="outline" onClick={onClose} disabled={uploading}>
             Close
           </Button>
-          <Button onClick={handleUpload} disabled={!canUpload}>
-            Upload {files.length > 0 && `(${files.length})`}
+          <Button
+            onClick={handleUpload}
+            disabled={!canUpload}
+            loading={uploading}
+          >
+            {uploading ? "Uploading…" : `Upload ${files.length > 0 ? `(${files.length})` : ""}`}
           </Button>
         </div>
       </div>

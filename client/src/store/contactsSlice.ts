@@ -1,15 +1,23 @@
 import {
+  createAsyncThunk,
   createEntityAdapter,
   createSelector,
   createSlice,
-  nanoid,
   type PayloadAction,
 } from "@reduxjs/toolkit"
+import { toast } from "sonner"
 
 import type { Contact } from "@/types/crm"
 import { EMPTY_ADDRESS, EMPTY_SOCIAL } from "@/types/crm"
 import type { RootState } from "./index"
-import { SEED_CONTACTS } from "./seed"
+import {
+  createContact as createContactRequest,
+  deleteContact as deleteContactRequest,
+  getContact as getContactRequest,
+  getContacts as getContactsRequest,
+  updateContact as updateContactRequest,
+  type ContactsFilters,
+} from "@/services/contactsService"
 
 const contactsAdapter = createEntityAdapter<Contact>({
   sortComparer: (a, b) => a.name.localeCompare(b.name),
@@ -17,44 +25,124 @@ const contactsAdapter = createEntityAdapter<Contact>({
 
 export type ContactDraft = Omit<Contact, "id" | "createdAt" | "updatedAt">
 
+type ContactsStatus = "idle" | "loading" | "succeeded" | "failed"
+
+interface ContactsState {
+  status: ContactsStatus
+  error: string | null
+}
+
+const initialState = contactsAdapter.getInitialState<ContactsState>({
+  status: "idle",
+  error: null,
+})
+
+// ---------------------------------------------------------------- thunks
+
+export const fetchContacts = createAsyncThunk(
+  "contacts/fetchContacts",
+  async (filters: ContactsFilters = {}) => {
+    return getContactsRequest(filters)
+  }
+)
+
+export const fetchContact = createAsyncThunk(
+  "contacts/fetchContact",
+  async (id: string) => {
+    const { contact } = await getContactRequest(id)
+    return contact
+  }
+)
+
+export const createContact = createAsyncThunk(
+  "contacts/createContact",
+  async (draft: Partial<Contact>) => {
+    const { contact } = await createContactRequest(draft)
+    return contact
+  }
+)
+
+export const updateContact = createAsyncThunk(
+  "contacts/updateContact",
+  async ({ id, changes }: { id: string; changes: Partial<Contact> }) => {
+    const { contact } = await updateContactRequest(id, changes)
+    return contact
+  }
+)
+
+export const deleteContact = createAsyncThunk(
+  "contacts/deleteContact",
+  async (id: string) => {
+    await deleteContactRequest(id)
+    return id
+  }
+)
+
+// ---------------------------------------------------------------- slice
+
 const contactsSlice = createSlice({
   name: "contacts",
-  initialState: contactsAdapter.setAll(
-    contactsAdapter.getInitialState(),
-    SEED_CONTACTS
-  ),
+  initialState,
   reducers: {
-    contactAdded: {
-      reducer: contactsAdapter.addOne,
-      // `id` may be supplied so callers (e.g. lead conversion) can reference the
-      // new record immediately without reading it back out of the store.
-      prepare: (draft: ContactDraft & { id?: string }) => {
-        const now = new Date().toISOString()
-        return {
-          payload: {
-            ...draft,
-            address: draft.address ?? EMPTY_ADDRESS,
-            social: draft.social ?? EMPTY_SOCIAL,
-            id: draft.id ?? nanoid(),
-            createdAt: now,
-            updatedAt: now,
-          } satisfies Contact,
-        }
-      },
-    },
-    contactUpdated: (
-      state,
-      action: PayloadAction<{ id: string; changes: Partial<Contact> }>
-    ) => {
-      contactsAdapter.updateOne(state, {
-        id: action.payload.id,
-        changes: {
-          ...action.payload.changes,
-          updatedAt: new Date().toISOString(),
-        },
-      })
-    },
+    /** Local actions kept for compatibility and optimistic updates. */
+    contactAdded: contactsAdapter.addOne,
+    contactUpdated: contactsAdapter.updateOne,
     contactRemoved: contactsAdapter.removeOne,
+  },
+  extraReducers: (builder) => {
+    builder
+      // fetchContacts
+      .addCase(fetchContacts.pending, (state) => {
+        state.status = "loading"
+        state.error = null
+      })
+      .addCase(fetchContacts.fulfilled, (state, action) => {
+        state.status = "succeeded"
+        state.error = null
+        contactsAdapter.setAll(state, action.payload.contacts)
+      })
+      .addCase(fetchContacts.rejected, (state, action) => {
+        state.status = "failed"
+        state.error =
+          typeof action.error.message === "string"
+            ? action.error.message
+            : "Failed to load contacts"
+        toast.error("Failed to load contacts")
+      })
+
+      // fetchContact
+      .addCase(fetchContact.fulfilled, (state, action) => {
+        contactsAdapter.upsertOne(state, action.payload)
+      })
+
+      // createContact
+      .addCase(createContact.fulfilled, (state, action) => {
+        contactsAdapter.addOne(state, action.payload)
+        state.status = "succeeded"
+        toast.success(`${action.payload.name} added as a contact`)
+      })
+      .addCase(createContact.rejected, (_state, action) => {
+        toast.error(action.error.message ?? "Failed to create contact")
+      })
+
+      // updateContact
+      .addCase(updateContact.fulfilled, (state, action) => {
+        contactsAdapter.upsertOne(state, action.payload)
+        state.status = "succeeded"
+        toast.success(`${action.payload.name} updated`)
+      })
+      .addCase(updateContact.rejected, (_state, action) => {
+        toast.error(action.error.message ?? "Failed to update contact")
+      })
+
+      // deleteContact
+      .addCase(deleteContact.fulfilled, (state, action) => {
+        contactsAdapter.removeOne(state, action.payload)
+        toast.success("Contact deleted")
+      })
+      .addCase(deleteContact.rejected, (_state, action) => {
+        toast.error(action.error.message ?? "Failed to delete contact")
+      })
   },
 })
 
@@ -71,6 +159,9 @@ export const {
   selectEntities: selectContactEntities,
   selectTotal: selectContactCount,
 } = contactsAdapter.getSelectors<RootState>((state) => state.contacts)
+
+export const selectContactsStatus = (state: RootState) => state.contacts.status
+export const selectContactsError = (state: RootState) => state.contacts.error
 
 export const selectContactsByCompanyId = createSelector(
   [selectAllContacts, (_: RootState, companyId: string) => companyId],

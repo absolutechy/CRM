@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react"
+import { useEffect, useMemo, useState } from "react"
 import type { ColumnDef } from "@tanstack/react-table"
 import {
   CheckCircle2,
@@ -16,9 +16,11 @@ import { Link } from "react-router"
 import MainContentWrapper from "@/components/common/MainContentWrapper"
 import PageHeader from "@/components/common/PageHeader"
 import DataTable from "@/components/common/DataTable"
+import StatCard from "@/components/pages/dashboard/StatCard"
 import ConfirmDeleteModal from "@/components/pages/contacts/ConfirmDeleteModal"
 import EmailComposeModal from "@/components/pages/email/EmailComposeModal"
 import TemplateFormModal from "@/components/pages/email/TemplateFormModal"
+import AddEmailAccountModal from "@/components/pages/email/AddEmailAccountModal"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
@@ -27,17 +29,20 @@ import {
   formatDate,
   stripHtml,
 } from "@/lib/crm"
-import { connectAccount, syncAccount } from "@/services/emailService"
 import { useAppDispatch, useAppSelector } from "@/store/hooks"
 import { selectContactEntities } from "@/store/contactsSlice"
 import {
+  createEmailTemplate,
+  fetchEmailAccounts,
+  fetchEmailTemplates,
+  fetchEmails,
+  removeEmailTemplate,
   selectAllEmailAccounts,
   selectAllEmails,
   selectAllTemplates,
   selectEmailStats,
-  templateAdded,
-  templateRemoved,
-  templateUpdated,
+  syncEmailAccount,
+  updateEmailTemplate,
   type TemplateDraft,
 } from "@/store/emailSlice"
 import { selectLeadEntities } from "@/store/leadsSlice"
@@ -55,11 +60,20 @@ const Email = () => {
 
   const [composeOpen, setComposeOpen] = useState(false)
   const [templateOpen, setTemplateOpen] = useState(false)
+  const [accountOpen, setAccountOpen] = useState(false)
   const [editingTemplate, setEditingTemplate] = useState<EmailTemplate | null>(
     null
   )
   const [pendingDelete, setPendingDelete] = useState<EmailTemplate | null>(null)
+  const [isSaving, setIsSaving] = useState(false)
+  const [isDeleting, setIsDeleting] = useState(false)
   const [notice, setNotice] = useState<string | null>(null)
+
+  useEffect(() => {
+    dispatch(fetchEmails())
+    dispatch(fetchEmailAccounts())
+    dispatch(fetchEmailTemplates())
+  }, [dispatch])
 
   const emailColumns = useMemo<ColumnDef<EmailMessage>[]>(
     () => [
@@ -156,16 +170,8 @@ const Email = () => {
     [contacts, leads]
   )
 
-  const handleConnect = async (accountId: string) => {
-    const account = accounts.find((a) => a.id === accountId)
-    if (!account) return
-    const res = await connectAccount(account)
-    setNotice(res.message)
-  }
-
   const handleSync = async (accountId: string) => {
-    const res = await syncAccount(accountId)
-    setNotice(res.message)
+    await dispatch(syncEmailAccount(accountId))
   }
 
   return (
@@ -173,24 +179,43 @@ const Email = () => {
       <PageHeader />
       <MainContentWrapper className="space-y-6 px-8">
         {/* Stats */}
-        <div className="grid gap-4 sm:grid-cols-4">
-          {[
-            { label: "Sent", value: stats.sent, icon: Mail },
-            { label: "Opened", value: stats.opened, icon: MailOpen },
-            { label: "Clicked", value: stats.clicked, icon: MousePointerClick },
-            { label: "Drafts", value: stats.drafts, icon: Pencil },
-          ].map(({ label, value, icon: Icon }) => (
-            <div
-              key={label}
-              className="rounded-lg border border-border bg-surface p-5"
-            >
-              <p className="flex items-center gap-2 text-xs text-muted-foreground">
-                <Icon className="size-3.5" />
-                {label}
-              </p>
-              <p className="mt-1 text-2xl font-bold text-foreground">{value}</p>
-            </div>
-          ))}
+        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+          <StatCard
+            icon={Mail}
+            title="Sent"
+            value={String(stats.sent)}
+            subtitle="Total emails sent"
+            tone="info"
+            sparkline={[2, 3, 3, 4, 5, 4, 6, 5, 6, 7, 8]}
+          />
+          <StatCard
+            icon={MailOpen}
+            title="Opened"
+            value={String(stats.opened)}
+            subtitle={
+              stats.sent ? `${Math.round((stats.opened / stats.sent) * 100)}% of sent` : "0% of sent"
+            }
+            tone="success"
+            sparkline={[1, 2, 1, 3, 2, 3, 4, 3, 5, 4, 5]}
+          />
+          <StatCard
+            icon={MousePointerClick}
+            title="Clicked"
+            value={String(stats.clicked)}
+            subtitle={
+              stats.sent ? `${Math.round((stats.clicked / stats.sent) * 100)}% of sent` : "0% of sent"
+            }
+            tone="default"
+            sparkline={[0, 1, 0, 1, 2, 1, 2, 2, 3, 2, 3]}
+          />
+          <StatCard
+            icon={Pencil}
+            title="Drafts"
+            value={String(stats.drafts)}
+            subtitle="Saved drafts"
+            tone="warning"
+            sparkline={[3, 2, 3, 2, 4, 3, 2, 3, 3, 2, 1]}
+          />
         </div>
 
         {notice && (
@@ -285,6 +310,12 @@ const Email = () => {
           </TabsContent>
 
           <TabsContent value="accounts" className="mt-6 space-y-4">
+            <div className="flex justify-end">
+              <Button size="sm" onClick={() => setAccountOpen(true)}>
+                <Plus />
+                Add account
+              </Button>
+            </div>
             <div className="grid gap-4 md:grid-cols-2">
               {accounts.map((a) => (
                 <article
@@ -321,7 +352,11 @@ const Email = () => {
                     <Button
                       variant="outline"
                       size="sm"
-                      onClick={() => handleConnect(a.id)}
+                      onClick={() =>
+                        setNotice(
+                          "Mailbox connection requires the backend OAuth flow — not available yet."
+                        )
+                      }
                     >
                       Connect
                     </Button>
@@ -347,31 +382,53 @@ const Email = () => {
         onClose={() => setComposeOpen(false)}
       />
 
+      <AddEmailAccountModal
+        isOpen={accountOpen}
+        onClose={() => setAccountOpen(false)}
+      />
+
       <TemplateFormModal
         isOpen={templateOpen}
         template={editingTemplate}
+        isLoading={isSaving}
         onClose={() => {
           setTemplateOpen(false)
           setEditingTemplate(null)
         }}
-        onSave={(draft: TemplateDraft) => {
-          if (editingTemplate) {
-            dispatch(
-              templateUpdated({ id: editingTemplate.id, changes: draft })
-            )
-          } else {
-            dispatch(templateAdded(draft))
+        onSave={async (draft: TemplateDraft) => {
+          setIsSaving(true)
+          try {
+            if (editingTemplate) {
+              await dispatch(
+                updateEmailTemplate({
+                  id: editingTemplate.id,
+                  changes: draft,
+                })
+              )
+            } else {
+              await dispatch(createEmailTemplate(draft))
+            }
+          } finally {
+            setIsSaving(false)
+            setTemplateOpen(false)
+            setEditingTemplate(null)
           }
-          setTemplateOpen(false)
-          setEditingTemplate(null)
         }}
       />
 
       <ConfirmDeleteModal
         isOpen={!!pendingDelete}
+        isLoading={isDeleting}
         onClose={() => setPendingDelete(null)}
-        onConfirm={() => {
-          if (pendingDelete) dispatch(templateRemoved(pendingDelete.id))
+        onConfirm={async () => {
+          if (!pendingDelete) return
+          setIsDeleting(true)
+          try {
+            await dispatch(removeEmailTemplate(pendingDelete.id))
+          } finally {
+            setIsDeleting(false)
+            setPendingDelete(null)
+          }
         }}
         title="Delete template"
         description={`Delete "${pendingDelete?.name}"? This cannot be undone.`}

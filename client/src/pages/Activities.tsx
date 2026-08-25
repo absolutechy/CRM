@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react"
+import { useEffect, useMemo, useState } from "react"
 import { useNavigate } from "react-router"
 
 import MainContentWrapper from "@/components/common/MainContentWrapper"
@@ -13,19 +13,37 @@ import {
   SelectValue,
 } from "@/components/ui/select"
 import { INTERACTION_META } from "@/lib/crm"
-import { useAppSelector } from "@/store/hooks"
-import { selectActors } from "@/store/activitiesSlice"
+import { useAppDispatch, useAppSelector } from "@/store/hooks"
+import {
+  fetchActivities,
+  selectActors,
+  selectActivitiesStatus,
+} from "@/store/activitiesSlice"
 import { selectAllInteractions } from "@/store/selectors"
+import { actorName } from "@/components/pages/activities/InteractionItem"
+import type { Activity } from "@/types/crm"
 import { INTERACTION_TYPES, isInteractionType } from "@/types/crm"
 
 const Activities = () => {
   const navigate = useNavigate()
+  const dispatch = useAppDispatch()
   const rows = useAppSelector(selectAllInteractions)
   const actors = useAppSelector(selectActors)
+  const status = useAppSelector(selectActivitiesStatus)
 
   const [typeFilter, setTypeFilter] = useState("all")
   const [actorFilter, setActorFilter] = useState("all")
   const [statusFilter, setStatusFilter] = useState("interactions")
+
+  // Fetch activities whenever the type/actor filters change.
+  useEffect(() => {
+    dispatch(
+      fetchActivities({
+        ...(typeFilter !== "all" && { type: typeFilter as Activity["type"] }),
+        ...(actorFilter !== "all" && { actorId: actorFilter }),
+      })
+    )
+  }, [dispatch, typeFilter, actorFilter])
 
   const visible = useMemo(
     () =>
@@ -35,7 +53,8 @@ const Activities = () => {
         if (statusFilter === "planned" && activity.status !== "planned")
           return false
         if (typeFilter !== "all" && activity.type !== typeFilter) return false
-        if (actorFilter !== "all" && activity.actor !== actorFilter) return false
+        if (actorFilter !== "all" && actorName(activity) !== actorFilter)
+          return false
         return true
       }),
     [rows, typeFilter, actorFilter, statusFilter]
@@ -45,6 +64,11 @@ const Activities = () => {
     <>
       <PageHeader />
       <MainContentWrapper className="space-y-6 px-8">
+        {status === "loading" && rows.length === 0 ? (
+          <div className="rounded-lg border border-border bg-surface p-8 text-center text-sm text-muted-foreground">
+            Loading activity…
+          </div>
+        ) : (
         <DataTable
           columns={interactionColumns}
           data={visible}
@@ -95,6 +119,7 @@ const Activities = () => {
             </div>
           }
         />
+        )}
       </MainContentWrapper>
     </>
   )

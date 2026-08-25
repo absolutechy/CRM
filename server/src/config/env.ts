@@ -23,6 +23,9 @@ const schema = z.object({
   JWT_REFRESH_TTL: z.string().default("7d"),
   BCRYPT_ROUNDS: z.coerce.number().int().min(10).max(15).default(12),
 
+  /** Name of the httpOnly cookie that carries the refresh token. */
+  AUTH_COOKIE_NAME: z.string().default("refreshToken"),
+
   // Storage is only required once documents land (phase 7), so these stay
   // optional and are checked at the point of use instead.
   S3_ENDPOINT: z.string().url().optional(),

@@ -2,6 +2,7 @@ import { createApp } from "@/app"
 import { env } from "@/config/env"
 import { logger } from "@/lib/logger"
 import { checkDatabase, disconnectPrisma } from "@/lib/prisma"
+import { startAutomationScheduler } from "@/automations/scheduler"
 
 const app = createApp()
 
@@ -18,6 +19,10 @@ const server = app.listen(env.PORT, async () => {
       { error: database.error }
     )
   }
+
+  // Start the in-process automation worker (event rules fire on demand via the
+  // engine; this cron handles time-based triggers like "inactive for N days").
+  startAutomationScheduler()
 })
 
 /** Finish in-flight requests and close the pool before exiting. */

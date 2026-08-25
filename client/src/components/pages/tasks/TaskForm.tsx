@@ -11,12 +11,13 @@ interface TaskFormProps {
   initialData?: TaskType | null;
   onSave?: (data: any) => void;
   onCancel?: () => void;
+  isSaving?: boolean;
 }
 
 /** `<input type="date">` needs YYYY-MM-DD; the store holds a full ISO string. */
 const toDateInput = (iso?: string) => (iso ? iso.slice(0, 10) : "")
 
-export default function TaskForm({ initialData, onSave, onCancel }: TaskFormProps) {
+export default function TaskForm({ initialData, onSave, onCancel, isSaving = false }: TaskFormProps) {
   const users = useAppSelector(selectAllUsers)
   const [description, setDescription] = useState("")
   const [comment, setComment] = useState("")
@@ -369,16 +370,23 @@ export default function TaskForm({ initialData, onSave, onCancel }: TaskFormProp
 
       {/* Footer Actions */}
       <div className="flex justify-end gap-3 px-7 py-5 bg-surface border-t w-full lg:col-span-2 lg:absolute bottom-0 right-0 rounded-b-2xl">
-        <Button variant="outline" onClick={onCancel}>Cancel</Button>
+        <Button variant="outline" onClick={onCancel} disabled={isSaving}>Cancel</Button>
         {initialData ? (
           <Button 
-            disabled={!hasChanges}
+            disabled={!hasChanges || isSaving}
+            loading={isSaving}
             onClick={() => onSave?.({ description, member, dueDate: dueDate ? new Date(dueDate).toISOString() : undefined, priority, status, checklists, comments: commentsList, attachments })}
           >
             Save Changes
           </Button>
         ) : (
-          <Button onClick={() => onSave?.({ description, member, dueDate: dueDate ? new Date(dueDate).toISOString() : undefined, priority, status, checklists, comments: commentsList, attachments })}>Create Task</Button>
+          <Button 
+            disabled={isSaving}
+            loading={isSaving}
+            onClick={() => onSave?.({ description, member, dueDate: dueDate ? new Date(dueDate).toISOString() : undefined, priority, status, checklists, comments: commentsList, attachments })}
+          >
+            Create Task
+          </Button>
         )}
       </div>
     </div>

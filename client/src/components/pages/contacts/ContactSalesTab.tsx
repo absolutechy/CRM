@@ -1,6 +1,7 @@
-import { Receipt } from "lucide-react"
+import { Receipt, TrendingUp, Trophy } from "lucide-react"
 
 import { Badge } from "@/components/ui/badge"
+import StatCard from "@/components/pages/dashboard/StatCard"
 import {
   Table,
   TableBody,
@@ -34,18 +35,22 @@ const ContactSalesTab: React.FC<ContactSalesTabProps> = ({ contactId }) => {
     <div className="space-y-6">
       {/* Summary */}
       <div className="grid gap-4 sm:grid-cols-3">
-        <div className="rounded-lg border border-border bg-surface p-5">
-          <p className="text-xs text-muted-foreground">Closed won</p>
-          <p className="mt-1 text-2xl font-bold text-foreground">
-            {formatCurrency(wonValue, currency)}
-          </p>
-        </div>
-        <div className="rounded-lg border border-border bg-surface p-5">
-          <p className="text-xs text-muted-foreground">Open pipeline</p>
-          <p className="mt-1 text-2xl font-bold text-foreground">
-            {formatCurrency(openValue, currency)}
-          </p>
-        </div>
+        <StatCard
+          icon={Trophy}
+          title="Closed won"
+          value={formatCurrency(wonValue, currency)}
+          subtitle="Won deals value"
+          tone="success"
+          sparkline={[5, 6, 8, 7, 9, 10, 12, 11, 13, 14, 16]}
+        />
+        <StatCard
+          icon={TrendingUp}
+          title="Open pipeline"
+          value={formatCurrency(openValue, currency)}
+          subtitle="Active deals value"
+          tone="default"
+          sparkline={[14, 16, 15, 19, 18, 22, 21, 25, 24, 27, 29]}
+        />
         <div className="rounded-lg border border-border bg-surface p-5">
           <p className="text-xs text-muted-foreground">Current stage</p>
           <p className="mt-2">

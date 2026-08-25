@@ -23,6 +23,7 @@ import { LEAD_SOURCES, LEAD_STATUSES } from "@/types/crm"
 interface LeadFormModalProps {
   isOpen: boolean
   lead?: Lead | null
+  isLoading?: boolean
   onClose: () => void
   onSave: (draft: LeadDraft) => void
 }
@@ -44,6 +45,7 @@ const emptyDraft = (): LeadDraft => ({
 const LeadFormModal: React.FC<LeadFormModalProps> = ({
   isOpen,
   lead,
+  isLoading = false,
   onClose,
   onSave,
 }) => {
@@ -256,7 +258,7 @@ const LeadFormModal: React.FC<LeadFormModalProps> = ({
           <Button type="button" variant="outline" onClick={onClose}>
             Cancel
           </Button>
-          <Button type="submit" disabled={!canSave}>
+          <Button type="submit" disabled={!canSave} loading={isLoading}>
             {lead ? "Save changes" : "Create lead"}
           </Button>
         </div>

@@ -1,4 +1,4 @@
-import { useState } from "react"
+import { useEffect, useState } from "react"
 import {
   Bar,
   BarChart,
@@ -8,10 +8,11 @@ import {
   XAxis,
   YAxis,
 } from "recharts"
-import { ArrowLeft, Megaphone, Plus, UserMinus } from "lucide-react"
+import { ArrowLeft, CalendarRange, CheckCircle2, MailOpen, Megaphone, MousePointerClick, Plus, UserCircle, UserMinus, Users, Wallet } from "lucide-react"
 import { Link, useParams } from "react-router"
 
 import MainContentWrapper from "@/components/common/MainContentWrapper"
+import StatCard from "@/components/pages/dashboard/StatCard"
 import AudienceSelector from "@/components/pages/campaigns/AudienceSelector"
 import CampaignFormModal from "@/components/pages/campaigns/CampaignFormModal"
 import { Badge } from "@/components/ui/badge"
@@ -33,13 +34,16 @@ import {
 } from "@/lib/crm"
 import { useAppDispatch, useAppSelector } from "@/store/hooks"
 import {
-  campaignUpdated,
-  memberRemoved,
-  memberResponseSet,
-  membersAdded,
+  addCampaignMembers,
+  changeMemberResponse,
+  fetchCampaign,
+  fetchMembers,
+  removeCampaignMember,
   selectCampaignById,
   selectCampaignPerformance,
+  selectCampaignsStatus,
   selectMembersByCampaignId,
+  updateCampaign,
   type CampaignDraft,
 } from "@/store/campaignsSlice"
 import { selectContactEntities } from "@/store/contactsSlice"
@@ -54,6 +58,7 @@ const CampaignDetail = () => {
   const dispatch = useAppDispatch()
 
   const campaign = useAppSelector((s: RootState) => selectCampaignById(s, id))
+  const status = useAppSelector(selectCampaignsStatus)
   const members = useAppSelector((s: RootState) =>
     selectMembersByCampaignId(s, id)
   )
@@ -68,6 +73,22 @@ const CampaignDetail = () => {
 
   const [editOpen, setEditOpen] = useState(false)
   const [audienceOpen, setAudienceOpen] = useState(false)
+  const [isSaving, setIsSaving] = useState(false)
+
+  useEffect(() => {
+    if (id) {
+      dispatch(fetchCampaign(id))
+      dispatch(fetchMembers(id))
+    }
+  }, [dispatch, id])
+
+  if (status === "loading" && !campaign) {
+    return (
+      <MainContentWrapper className="px-8 py-16 text-center text-sm text-muted-foreground">
+        Loading campaign…
+      </MainContentWrapper>
+    )
+  }
 
   if (!campaign) {
     return (
@@ -143,28 +164,38 @@ const CampaignDetail = () => {
 
           <TabsContent value="overview" className="mt-6">
             <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-              {[
-                { label: "Audience", value: String(performance.total) },
-                {
-                  label: "Budget",
-                  value: campaign.budget ? formatCurrency(campaign.budget) : "—",
-                },
-                { label: "Owner", value: ownerName },
-                {
-                  label: "Runs",
-                  value: `${formatDate(campaign.startDate)}${campaign.endDate ? ` → ${formatDate(campaign.endDate)}` : ""}`,
-                },
-              ].map((s) => (
-                <div
-                  key={s.label}
-                  className="rounded-lg border border-border bg-surface p-5"
-                >
-                  <p className="text-xs text-muted-foreground">{s.label}</p>
-                  <p className="mt-1 text-lg font-bold text-foreground">
-                    {s.value}
-                  </p>
-                </div>
-              ))}
+              <StatCard
+                icon={Users}
+                title="Audience"
+                value={String(performance.total)}
+                subtitle="Members in campaign"
+                tone="default"
+                sparkline={[10, 12, 11, 15, 14, 18, 17, 20, 22, 24, 26]}
+              />
+              <StatCard
+                icon={Wallet}
+                title="Budget"
+                value={campaign.budget ? formatCurrency(campaign.budget) : "—"}
+                subtitle="Campaign budget"
+                tone="success"
+                sparkline={[20, 20, 21, 21, 22, 22, 23, 23, 24, 24, 25]}
+              />
+              <StatCard
+                icon={UserCircle}
+                title="Owner"
+                value={ownerName}
+                subtitle="Campaign owner"
+                tone="info"
+                sparkline={[5, 5, 6, 6, 7, 7, 8, 8, 9, 9, 10]}
+              />
+              <StatCard
+                icon={CalendarRange}
+                title="Runs"
+                value={`${formatDate(campaign.startDate)}${campaign.endDate ? ` → ${formatDate(campaign.endDate)}` : ""}`}
+                subtitle="Schedule window"
+                tone="warning"
+                sparkline={[3, 4, 4, 5, 5, 6, 6, 7, 7, 8, 8]}
+              />
             </div>
           </TabsContent>
 
@@ -221,8 +252,9 @@ const CampaignDetail = () => {
                           value={m.response}
                           onValueChange={(v) =>
                             dispatch(
-                              memberResponseSet({
-                                id: m.id,
+                              changeMemberResponse({
+                                campaignId: campaign.id,
+                                memberId: m.id,
                                 response: v as CampaignResponse,
                               })
                             )
@@ -247,7 +279,14 @@ const CampaignDetail = () => {
                           variant="ghost"
                           size="icon-sm"
                           aria-label="Remove from campaign"
-                          onClick={() => dispatch(memberRemoved(m.id))}
+                          onClick={() =>
+                            dispatch(
+                              removeCampaignMember({
+                                campaignId: campaign.id,
+                                memberId: m.id,
+                              })
+                            )
+                          }
                         >
                           <UserMinus />
                         </Button>
@@ -261,24 +300,30 @@ const CampaignDetail = () => {
 
           <TabsContent value="performance" className="mt-6 space-y-6">
             <div className="grid gap-4 sm:grid-cols-3">
-              <div className="rounded-lg border border-border bg-surface p-5">
-                <p className="text-xs text-muted-foreground">Open rate</p>
-                <p className="mt-1 text-2xl font-bold text-foreground">
-                  {performance.openRate}%
-                </p>
-              </div>
-              <div className="rounded-lg border border-border bg-surface p-5">
-                <p className="text-xs text-muted-foreground">Conversion rate</p>
-                <p className="mt-1 text-2xl font-bold text-foreground">
-                  {performance.conversionRate}%
-                </p>
-              </div>
-              <div className="rounded-lg border border-border bg-surface p-5">
-                <p className="text-xs text-muted-foreground">Converted</p>
-                <p className="mt-1 text-2xl font-bold text-foreground">
-                  {performance.converted}
-                </p>
-              </div>
+              <StatCard
+                icon={MailOpen}
+                title="Open rate"
+                value={`${performance.openRate}%`}
+                subtitle="Of all members"
+                tone="info"
+                sparkline={[30, 35, 33, 40, 38, 42, 45, 43, 48, 46, 50]}
+              />
+              <StatCard
+                icon={MousePointerClick}
+                title="Conversion rate"
+                value={`${performance.conversionRate}%`}
+                subtitle="Converted members"
+                tone="success"
+                sparkline={[8, 10, 9, 12, 11, 14, 13, 16, 15, 18, 20]}
+              />
+              <StatCard
+                icon={CheckCircle2}
+                title="Converted"
+                value={String(performance.converted)}
+                subtitle="Total conversions"
+                tone="default"
+                sparkline={[2, 3, 3, 4, 5, 4, 6, 5, 7, 6, 8]}
+              />
             </div>
 
             <section className="rounded-lg border border-border bg-surface p-6">
@@ -333,10 +378,18 @@ const CampaignDetail = () => {
       <CampaignFormModal
         isOpen={editOpen}
         campaign={campaign}
+        isLoading={isSaving}
         onClose={() => setEditOpen(false)}
-        onSave={(draft: CampaignDraft) => {
-          dispatch(campaignUpdated({ id: campaign.id, changes: draft }))
-          setEditOpen(false)
+        onSave={async (draft: CampaignDraft) => {
+          setIsSaving(true)
+          try {
+            await dispatch(
+              updateCampaign({ id: campaign.id, changes: draft })
+            )
+          } finally {
+            setIsSaving(false)
+            setEditOpen(false)
+          }
         }}
       />
 
@@ -345,9 +398,16 @@ const CampaignDetail = () => {
         onClose={() => setAudienceOpen(false)}
         existingContactIds={members.map((m) => m.contactId).filter(Boolean) as string[]}
         existingLeadIds={members.map((m) => m.leadId).filter(Boolean) as string[]}
-        onAdd={({ contactIds, leadIds }) =>
-          dispatch(membersAdded({ campaignId: campaign.id, contactIds, leadIds }))
-        }
+        onAdd={({ contactIds, leadIds }) => {
+          dispatch(
+            addCampaignMembers({
+              campaignId: campaign.id,
+              contactIds,
+              leadIds,
+            })
+          )
+          setAudienceOpen(false)
+        }}
       />
     </>
   )

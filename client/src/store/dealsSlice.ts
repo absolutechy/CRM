@@ -1,15 +1,24 @@
 import {
+  createAsyncThunk,
   createEntityAdapter,
   createSelector,
   createSlice,
-  nanoid,
   type PayloadAction,
 } from "@reduxjs/toolkit"
+import { toast } from "sonner"
 
 import type { Deal, DealStage } from "@/types/crm"
 import { isOpenStage } from "@/types/crm"
 import type { RootState } from "./index"
-import { SEED_DEALS } from "./seed"
+import {
+  changeDealStage as changeDealStageRequest,
+  createDeal as createDealRequest,
+  deleteDeal as deleteDealRequest,
+  getDeal as getDealRequest,
+  getDeals as getDealsRequest,
+  updateDeal as updateDealRequest,
+  type DealsFilters,
+} from "@/services/dealsService"
 
 const dealsAdapter = createEntityAdapter<Deal>({
   sortComparer: (a, b) => b.updatedAt.localeCompare(a.updatedAt),
@@ -17,37 +26,77 @@ const dealsAdapter = createEntityAdapter<Deal>({
 
 export type DealDraft = Omit<Deal, "id" | "createdAt" | "updatedAt">
 
+type DealsStatus = "idle" | "loading" | "succeeded" | "failed"
+
+interface DealsState {
+  status: DealsStatus
+  error: string | null
+}
+
+const initialState = dealsAdapter.getInitialState<DealsState>({
+  status: "idle",
+  error: null,
+})
+
+// ---------------------------------------------------------------- thunks
+
+export const fetchDeals = createAsyncThunk(
+  "deals/fetchDeals",
+  async (filters: DealsFilters = {}) => {
+    return getDealsRequest(filters)
+  }
+)
+
+export const fetchDeal = createAsyncThunk(
+  "deals/fetchDeal",
+  async (id: string) => {
+    const { deal } = await getDealRequest(id)
+    return deal
+  }
+)
+
+export const createDeal = createAsyncThunk(
+  "deals/createDeal",
+  async (draft: Partial<Deal>) => {
+    const { deal } = await createDealRequest(draft)
+    return deal
+  }
+)
+
+export const updateDeal = createAsyncThunk(
+  "deals/updateDeal",
+  async ({ id, changes }: { id: string; changes: Partial<Deal> }) => {
+    const { deal } = await updateDealRequest(id, changes)
+    return deal
+  }
+)
+
+export const changeDealStage = createAsyncThunk(
+  "deals/changeDealStage",
+  async ({ id, stage }: { id: string; stage: DealStage }) => {
+    const { deal } = await changeDealStageRequest(id, stage)
+    return deal
+  }
+)
+
+export const deleteDeal = createAsyncThunk(
+  "deals/deleteDeal",
+  async (id: string) => {
+    await deleteDealRequest(id)
+    return id
+  }
+)
+
+// ---------------------------------------------------------------- slice
+
 const dealsSlice = createSlice({
   name: "deals",
-  initialState: dealsAdapter.setAll(dealsAdapter.getInitialState(), SEED_DEALS),
+  initialState,
   reducers: {
-    dealAdded: {
-      reducer: dealsAdapter.addOne,
-      prepare: (draft: DealDraft & { id?: string }) => {
-        const now = new Date().toISOString()
-        return {
-          payload: {
-            ...draft,
-            id: draft.id ?? nanoid(),
-            createdAt: now,
-            updatedAt: now,
-          } satisfies Deal,
-        }
-      },
-    },
-    dealUpdated: (
-      state,
-      action: PayloadAction<{ id: string; changes: Partial<Deal> }>
-    ) => {
-      dealsAdapter.updateOne(state, {
-        id: action.payload.id,
-        changes: {
-          ...action.payload.changes,
-          updatedAt: new Date().toISOString(),
-        },
-      })
-    },
-    /** Board drag-and-drop: moving to a closed stage stamps `closedAt`. */
+    /** Local actions kept for compatibility and optimistic updates. */
+    dealAdded: dealsAdapter.addOne,
+    dealUpdated: dealsAdapter.updateOne,
+    dealRemoved: dealsAdapter.removeOne,
     dealStageChanged: (
       state,
       action: PayloadAction<{ id: string; stage: DealStage }>
@@ -63,7 +112,70 @@ const dealsSlice = createSlice({
         deal.closedAt = undefined
       }
     },
-    dealRemoved: dealsAdapter.removeOne,
+  },
+  extraReducers: (builder) => {
+    builder
+      // fetchDeals
+      .addCase(fetchDeals.pending, (state) => {
+        state.status = "loading"
+        state.error = null
+      })
+      .addCase(fetchDeals.fulfilled, (state, action) => {
+        state.status = "succeeded"
+        state.error = null
+        dealsAdapter.setAll(state, action.payload.deals)
+      })
+      .addCase(fetchDeals.rejected, (state, action) => {
+        state.status = "failed"
+        state.error =
+          typeof action.error.message === "string"
+            ? action.error.message
+            : "Failed to load deals"
+        toast.error("Failed to load deals")
+      })
+
+      // fetchDeal
+      .addCase(fetchDeal.fulfilled, (state, action) => {
+        dealsAdapter.upsertOne(state, action.payload)
+      })
+
+      // createDeal
+      .addCase(createDeal.fulfilled, (state, action) => {
+        dealsAdapter.addOne(state, action.payload)
+        state.status = "succeeded"
+        toast.success(`${action.payload.title} added as a deal`)
+      })
+      .addCase(createDeal.rejected, (_state, action) => {
+        toast.error(action.error.message ?? "Failed to create deal")
+      })
+
+      // updateDeal
+      .addCase(updateDeal.fulfilled, (state, action) => {
+        dealsAdapter.upsertOne(state, action.payload)
+        state.status = "succeeded"
+        toast.success(`${action.payload.title} updated`)
+      })
+      .addCase(updateDeal.rejected, (_state, action) => {
+        toast.error(action.error.message ?? "Failed to update deal")
+      })
+
+      // changeDealStage
+      .addCase(changeDealStage.fulfilled, (state, action) => {
+        dealsAdapter.upsertOne(state, action.payload)
+        toast.success(`Deal moved to ${action.payload.stage}`)
+      })
+      .addCase(changeDealStage.rejected, (_state, action) => {
+        toast.error(action.error.message ?? "Failed to move deal")
+      })
+
+      // deleteDeal
+      .addCase(deleteDeal.fulfilled, (state, action) => {
+        dealsAdapter.removeOne(state, action.payload)
+        toast.success("Deal deleted")
+      })
+      .addCase(deleteDeal.rejected, (_state, action) => {
+        toast.error(action.error.message ?? "Failed to delete deal")
+      })
   },
 })
 
@@ -79,6 +191,9 @@ export const {
   selectById: selectDealById,
   selectEntities: selectDealEntities,
 } = dealsAdapter.getSelectors<RootState>((state) => state.deals)
+
+export const selectDealsStatus = (state: RootState) => state.deals.status
+export const selectDealsError = (state: RootState) => state.deals.error
 
 export const selectDealsByContactId = createSelector(
   [selectAllDeals, (_: RootState, contactId: string) => contactId],

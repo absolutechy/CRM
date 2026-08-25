@@ -28,6 +28,7 @@ export interface ConvertOptions {
 interface ConvertLeadModalProps {
   isOpen: boolean
   lead: Lead | null
+  isLoading?: boolean
   onClose: () => void
   onConvert: (lead: Lead, options: ConvertOptions) => void
 }
@@ -35,6 +36,7 @@ interface ConvertLeadModalProps {
 const ConvertLeadModal: React.FC<ConvertLeadModalProps> = ({
   isOpen,
   lead,
+  isLoading = false,
   onClose,
   onConvert,
 }) => {
@@ -174,8 +176,8 @@ const ConvertLeadModal: React.FC<ConvertLeadModalProps> = ({
                 createCompany,
                 keepLead,
               })
-              onClose()
             }}
+            loading={isLoading}
           >
             Convert lead
           </Button>

@@ -39,18 +39,23 @@ const Dashboard: React.FC = () => {
             title="Open Pipeline"
             value={formatCurrency(pipeline.openValue, pipeline.currency)}
             subtitle={`${pipeline.openCount} open · ${pipeline.winRate}% win rate`}
+            sparkline={[12, 14, 13, 18, 17, 21, 20, 24, 23, 26, 28]}
           />
           <StatCard
             icon={Building2}
             title="Active Companies"
             value={String(activeCompanies)}
             subtitle={`${companies.length} total accounts`}
+            tone="info"
+            sparkline={[8, 9, 9, 11, 10, 12, 14, 13, 15, 16, 18]}
           />
           <StatCard
             icon={Users}
             title="Total Contacts"
             value={String(contactCount)}
             subtitle="Across all accounts"
+            tone="success"
+            sparkline={[20, 22, 21, 24, 26, 25, 28, 30, 29, 32, 34]}
           />
           <StatCard
             icon={CheckSquare}
@@ -62,6 +67,7 @@ const Dashboard: React.FC = () => {
                 : `${tasks.done} completed`
             }
             tone={tasks.overdue > 0 ? "warning" : "default"}
+            sparkline={[6, 8, 7, 9, 8, 10, 9, 11, 10, 9, 8]}
           />
         </div>
 

@@ -6,9 +6,9 @@ import InteractionFormModal from "@/components/pages/activities/InteractionFormM
 import InteractionTimeline from "@/components/pages/activities/InteractionTimeline"
 import { useAppDispatch, useAppSelector } from "@/store/hooks"
 import {
-  activityLogged,
-  activityRemoved,
-  activityUpdated,
+  createActivity,
+  deleteActivity,
+  updateActivity,
   type ActivityDraft,
 } from "@/store/activitiesSlice"
 import { selectTimelineForContact } from "@/store/selectors"
@@ -38,7 +38,7 @@ const ContactActivityTab: React.FC<ContactActivityTabProps> = ({
         <InteractionComposer
           contactId={contactId}
           companyId={companyId}
-          onLog={(draft: ActivityDraft) => dispatch(activityLogged(draft))}
+          onLog={(draft: ActivityDraft) => dispatch(createActivity(draft))}
         />
       </div>
 
@@ -54,14 +54,15 @@ const ContactActivityTab: React.FC<ContactActivityTabProps> = ({
         isOpen={!!editing}
         activity={editing}
         onClose={() => setEditing(null)}
-        onSave={(id, changes) => dispatch(activityUpdated({ id, changes }))}
+        onSave={(id, changes) => dispatch(updateActivity({ id, changes }))}
       />
 
       <ConfirmDeleteModal
         isOpen={!!pendingDelete}
         onClose={() => setPendingDelete(null)}
         onConfirm={() => {
-          if (pendingDelete) dispatch(activityRemoved(pendingDelete.id))
+          if (pendingDelete) dispatch(deleteActivity(pendingDelete.id))
+          setPendingDelete(null)
         }}
         title="Delete interaction"
         description={`Delete "${pendingDelete?.summary}"? This removes it from the customer's history.`}

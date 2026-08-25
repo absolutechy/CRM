@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react"
+import { useEffect, useMemo, useState } from "react"
 import { Plus } from "lucide-react"
 import { useNavigate } from "react-router"
 
@@ -11,13 +11,15 @@ import { createCompanyColumns } from "@/components/pages/companies/columns"
 import { Button } from "@/components/ui/button"
 import { useAppDispatch, useAppSelector } from "@/store/hooks"
 import {
-  companyAdded,
-  companyRemoved,
-  companyUpdated,
+  createCompany,
+  deleteCompany,
+  fetchCompanies,
   selectAllCompanies,
+  selectCompaniesStatus,
+  updateCompany,
   type CompanyDraft,
 } from "@/store/companiesSlice"
-import { selectAllContacts } from "@/store/contactsSlice"
+import { fetchContacts, selectAllContacts } from "@/store/contactsSlice"
 import type { Company } from "@/types/crm"
 
 const Companies = () => {
@@ -26,10 +28,18 @@ const Companies = () => {
 
   const companies = useAppSelector(selectAllCompanies)
   const contacts = useAppSelector(selectAllContacts)
+  const status = useAppSelector(selectCompaniesStatus)
 
   const [formOpen, setFormOpen] = useState(false)
   const [editing, setEditing] = useState<Company | null>(null)
   const [pendingDelete, setPendingDelete] = useState<Company | null>(null)
+  const [isSaving, setIsSaving] = useState(false)
+  const [isDeleting, setIsDeleting] = useState(false)
+
+  useEffect(() => {
+    dispatch(fetchCompanies())
+    dispatch(fetchContacts())
+  }, [dispatch])
 
   const countsByCompany = useMemo(() => {
     const map = new Map<string, number>()
@@ -52,14 +62,19 @@ const Companies = () => {
     [countsByCompany]
   )
 
-  const handleSave = (draft: CompanyDraft) => {
-    if (editing) {
-      dispatch(companyUpdated({ id: editing.id, changes: draft }))
-    } else {
-      dispatch(companyAdded(draft))
+  const handleSave = async (draft: CompanyDraft) => {
+    setIsSaving(true)
+    try {
+      if (editing) {
+        await dispatch(updateCompany({ id: editing.id, changes: draft }))
+      } else {
+        await dispatch(createCompany(draft))
+      }
+    } finally {
+      setIsSaving(false)
+      setFormOpen(false)
+      setEditing(null)
     }
-    setFormOpen(false)
-    setEditing(null)
   }
 
   const linkedContacts = pendingDelete
@@ -70,30 +85,37 @@ const Companies = () => {
     <>
       <PageHeader />
       <MainContentWrapper className="space-y-6 px-8">
-        <DataTable
-          columns={columns}
-          data={companies}
-          searchPlaceholder="Search companies..."
-          onRowClick={(company) => navigate(`/companies/${company.id}`)}
-          emptyMessage="No companies yet."
-          actions={
-            <Button
-              size="sm"
-              onClick={() => {
-                setEditing(null)
-                setFormOpen(true)
-              }}
-            >
-              <Plus />
-              New company
-            </Button>
-          }
-        />
+        {status === "loading" && companies.length === 0 ? (
+          <div className="rounded-lg border border-border bg-surface p-8 text-center text-sm text-muted-foreground">
+            Loading companies…
+          </div>
+        ) : (
+          <DataTable
+            columns={columns}
+            data={companies}
+            searchPlaceholder="Search companies..."
+            onRowClick={(company) => navigate(`/companies/${company.id}`)}
+            emptyMessage="No companies yet."
+            actions={
+              <Button
+                size="sm"
+                onClick={() => {
+                  setEditing(null)
+                  setFormOpen(true)
+                }}
+              >
+                <Plus />
+                New company
+              </Button>
+            }
+          />
+        )}
       </MainContentWrapper>
 
       <CompanyFormModal
         isOpen={formOpen}
         company={editing}
+        isLoading={isSaving}
         onClose={() => {
           setFormOpen(false)
           setEditing(null)
@@ -103,9 +125,17 @@ const Companies = () => {
 
       <ConfirmDeleteModal
         isOpen={!!pendingDelete}
+        isLoading={isDeleting}
         onClose={() => setPendingDelete(null)}
-        onConfirm={() => {
-          if (pendingDelete) dispatch(companyRemoved(pendingDelete.id))
+        onConfirm={async () => {
+          if (!pendingDelete) return
+          setIsDeleting(true)
+          try {
+            await dispatch(deleteCompany(pendingDelete.id))
+          } finally {
+            setIsDeleting(false)
+            setPendingDelete(null)
+          }
         }}
         title="Delete company"
         description={

@@ -1,8 +1,16 @@
-import { CalendarDays, ListFilter, Paperclip, MessageSquareMore, MoreHorizontal } from "lucide-react"
+import { CalendarDays, ListFilter, Paperclip, MessageSquareMore, MoreHorizontal, Pencil, Trash2 } from "lucide-react"
 
 import { Card, CardContent } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu"
+import { Button } from "@/components/ui/button"
 import { formatDate } from "@/lib/crm"
 import { cn } from "@/lib/utils"
 import type { Task } from "@/types/crm"
@@ -13,9 +21,11 @@ export type TaskType = Task
 interface TaskCardProps {
   task: TaskType
   onClick?: (task: TaskType) => void
+  onEdit?: (task: TaskType) => void
+  onDelete?: (task: TaskType) => void
 }
 
-export default function TaskCard({ task, onClick }: TaskCardProps) {
+export default function TaskCard({ task, onClick, onEdit, onDelete }: TaskCardProps) {
   const handleDragStart = (e: React.DragEvent<HTMLDivElement>) => {
     e.dataTransfer.setData("text/plain", task.id)
     // Optional: Add some effect styling during drag
@@ -60,9 +70,36 @@ export default function TaskCard({ task, onClick }: TaskCardProps) {
               Urgent
             </Badge>
           </div>
-          <button className="text-muted-foreground -mt-1 hover:text-muted-foreground">
-            <MoreHorizontal size={20} strokeWidth={2.5} />
-          </button>
+          <div onClick={(e) => e.stopPropagation()}>
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button
+                  variant="ghost"
+                  size="icon-sm"
+                  className="text-muted-foreground -mt-1 hover:text-muted-foreground"
+                  aria-label={`Actions for ${task.title}`}
+                >
+                  <MoreHorizontal size={20} strokeWidth={2.5} />
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end">
+                <DropdownMenuItem
+                  onSelect={() => onEdit?.(task)}
+                >
+                  <Pencil />
+                  Edit
+                </DropdownMenuItem>
+                <DropdownMenuSeparator />
+                <DropdownMenuItem
+                  variant="destructive"
+                  onSelect={() => onDelete?.(task)}
+                >
+                  <Trash2 />
+                  Delete
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+          </div>
         </div>
         <h2 className="text-sm font-semibold text-foreground mb-6">
           {task.title}

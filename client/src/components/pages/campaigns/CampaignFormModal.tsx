@@ -25,6 +25,7 @@ interface CampaignFormModalProps {
   campaign?: Campaign | null
   onClose: () => void
   onSave: (draft: CampaignDraft) => void
+  isLoading?: boolean
 }
 
 const toDateInput = (iso?: string) => (iso ? iso.slice(0, 10) : "")
@@ -46,6 +47,7 @@ const CampaignFormModal: React.FC<CampaignFormModalProps> = ({
   campaign,
   onClose,
   onSave,
+  isLoading = false,
 }) => {
   const users = useAppSelector(selectAllUsers)
   const templates = useAppSelector(selectAllTemplates)
@@ -55,11 +57,23 @@ const CampaignFormModal: React.FC<CampaignFormModalProps> = ({
     if (!isOpen) return
     if (campaign) {
       const { id: _id, createdAt: _c, ...rest } = campaign
-      setDraft(rest)
+      const userIds = new Set(users.map((u) => u.id))
+      const templateIds = new Set(templates.map((t) => t.id))
+      setDraft({
+        ...rest,
+        // Drop stale seed ids that don't exist in the real user/template lists
+        // — sending them to the API would fail cuid validation.
+        ownerId:
+          rest.ownerId && userIds.has(rest.ownerId) ? rest.ownerId : null,
+        templateId:
+          rest.templateId && templateIds.has(rest.templateId)
+            ? rest.templateId
+            : null,
+      })
     } else {
       setDraft(emptyDraft())
     }
-  }, [isOpen, campaign])
+  }, [isOpen, campaign, users, templates])
 
   const set = <K extends keyof CampaignDraft>(
     key: K,
@@ -232,7 +246,7 @@ const CampaignFormModal: React.FC<CampaignFormModalProps> = ({
           <Button type="button" variant="outline" onClick={onClose}>
             Cancel
           </Button>
-          <Button type="submit" disabled={!canSave}>
+          <Button type="submit" disabled={!canSave} loading={isLoading}>
             {campaign ? "Save changes" : "Create campaign"}
           </Button>
         </div>

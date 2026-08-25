@@ -1,4 +1,4 @@
-import { useState } from "react"
+import { useEffect, useState } from "react"
 import {
   ArrowLeft,
   ArrowRightLeft,
@@ -34,18 +34,20 @@ import {
   getInitials,
 } from "@/lib/crm"
 import { useAppDispatch, useAppSelector } from "@/store/hooks"
-import { activityLogged } from "@/store/activitiesSlice"
+import { createActivity } from "@/store/activitiesSlice"
 import { selectCampaignById } from "@/store/campaignsSlice"
 import { selectDocumentsByLeadId } from "@/store/documentsSlice"
 import {
-  leadRemoved,
-  leadUpdated,
+  deleteLead,
+  fetchLead,
   selectLeadById,
-  type LeadDraft,
+  selectLeadsStatus,
+  updateLead,
 } from "@/store/leadsSlice"
 import { selectTimelineForLead } from "@/store/selectors"
 import { selectUserNameById } from "@/store/usersSlice"
 import type { RootState } from "@/store"
+import type { Lead } from "@/types/crm"
 
 const LeadDetail = () => {
   const { id = "" } = useParams()
@@ -54,6 +56,7 @@ const LeadDetail = () => {
   const convertLead = useConvertLead()
 
   const lead = useAppSelector((s: RootState) => selectLeadById(s, id))
+  const status = useAppSelector(selectLeadsStatus)
   const timeline = useAppSelector((s: RootState) => selectTimelineForLead(s, id))
   const ownerName = useAppSelector((s: RootState) =>
     selectUserNameById(s, lead?.ownerId)
@@ -68,6 +71,23 @@ const LeadDetail = () => {
   const [editOpen, setEditOpen] = useState(false)
   const [convertOpen, setConvertOpen] = useState(false)
   const [deleteOpen, setDeleteOpen] = useState(false)
+  const [isSaving, setIsSaving] = useState(false)
+  const [isConverting, setIsConverting] = useState(false)
+  const [isDeleting, setIsDeleting] = useState(false)
+
+  useEffect(() => {
+    if (id) {
+      dispatch(fetchLead(id))
+    }
+  }, [dispatch, id])
+
+  if (status === "loading" && !lead) {
+    return (
+      <MainContentWrapper className="px-8 py-16 text-center text-sm text-muted-foreground">
+        Loading lead…
+      </MainContentWrapper>
+    )
+  }
 
   if (!lead) {
     return (
@@ -88,6 +108,40 @@ const LeadDetail = () => {
   }
 
   const isConverted = lead.status === "converted"
+
+  const handleSave = async (draft: Partial<Lead>) => {
+    setIsSaving(true)
+    try {
+      await dispatch(updateLead({ id: lead.id, changes: draft }))
+    } finally {
+      setIsSaving(false)
+      setEditOpen(false)
+    }
+  }
+
+  const handleDelete = async () => {
+    setIsDeleting(true)
+    try {
+      await dispatch(deleteLead(lead.id))
+      setDeleteOpen(false)
+      navigate("/leads")
+    } finally {
+      setIsDeleting(false)
+    }
+  }
+
+  const handleConvert = async (lead: Lead, options: ConvertOptions) => {
+    setIsConverting(true)
+    try {
+      const result = await convertLead(lead, options)
+      if (result.contactId) {
+        navigate(`/contacts/${result.contactId}`)
+      }
+    } finally {
+      setIsConverting(false)
+      setConvertOpen(false)
+    }
+  }
 
   return (
     <>
@@ -269,7 +323,7 @@ const LeadDetail = () => {
                 <InteractionComposer
                   leadId={lead.id}
                   companyId={null}
-                  onLog={(draft) => dispatch(activityLogged(draft))}
+                  onLog={(draft) => dispatch(createActivity(draft))}
                 />
               </div>
               <div className="lg:col-span-2">
@@ -292,30 +346,24 @@ const LeadDetail = () => {
       <LeadFormModal
         isOpen={editOpen}
         lead={lead}
+        isLoading={isSaving}
         onClose={() => setEditOpen(false)}
-        onSave={(draft: LeadDraft) => {
-          dispatch(leadUpdated({ id: lead.id, changes: draft }))
-          setEditOpen(false)
-        }}
+        onSave={handleSave}
       />
 
       <ConvertLeadModal
         isOpen={convertOpen}
         lead={lead}
+        isLoading={isConverting}
         onClose={() => setConvertOpen(false)}
-        onConvert={(l, options: ConvertOptions) => {
-          const { contactId } = convertLead(l, options)
-          navigate(`/contacts/${contactId}`)
-        }}
+        onConvert={handleConvert}
       />
 
       <ConfirmDeleteModal
         isOpen={deleteOpen}
+        isLoading={isDeleting}
         onClose={() => setDeleteOpen(false)}
-        onConfirm={() => {
-          dispatch(leadRemoved(lead.id))
-          navigate("/leads")
-        }}
+        onConfirm={handleDelete}
         title="Delete lead"
         description={`Delete ${lead.name}? This cannot be undone.`}
       />

@@ -25,6 +25,7 @@ interface DealFormModalProps {
   deal?: Deal | null
   onClose: () => void
   onSave: (draft: DealDraft) => void
+  isLoading?: boolean
 }
 
 const toDateInput = (iso?: string) => (iso ? iso.slice(0, 10) : "")
@@ -48,6 +49,7 @@ const DealFormModal: React.FC<DealFormModalProps> = ({
   deal,
   onClose,
   onSave,
+  isLoading = false,
 }) => {
   const contacts = useAppSelector(selectAllContacts)
   const companies = useAppSelector(selectAllCompanies)
@@ -236,7 +238,7 @@ const DealFormModal: React.FC<DealFormModalProps> = ({
           <Button type="button" variant="outline" onClick={onClose}>
             Cancel
           </Button>
-          <Button type="submit" disabled={!canSave}>
+          <Button type="submit" disabled={!canSave} loading={isLoading}>
             {deal ? "Save changes" : "Create deal"}
           </Button>
         </div>

@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react"
+import { useEffect, useMemo, useState } from "react"
 import type { ColumnDef } from "@tanstack/react-table"
 import { Megaphone, MoreHorizontal, Pencil, Plus, Trash2 } from "lucide-react"
 import { Link, useNavigate } from "react-router"
@@ -32,15 +32,17 @@ import {
 } from "@/lib/crm"
 import { useAppDispatch, useAppSelector } from "@/store/hooks"
 import {
-  campaignAdded,
-  campaignRemoved,
-  campaignUpdated,
+  createCampaign,
+  deleteCampaign,
+  fetchCampaigns,
   selectAllCampaigns,
+  selectCampaignsStatus,
   selectMemberCounts,
+  updateCampaign,
   type CampaignDraft,
 } from "@/store/campaignsSlice"
-import { selectUserEntities } from "@/store/usersSlice"
-import type { Campaign } from "@/types/crm"
+import { fetchUsers, selectUserEntities } from "@/store/usersSlice"
+import type { Campaign, CampaignStatus, CampaignType } from "@/types/crm"
 import { CAMPAIGN_STATUSES, CAMPAIGN_TYPES } from "@/types/crm"
 
 const Campaigns = () => {
@@ -50,12 +52,28 @@ const Campaigns = () => {
   const campaigns = useAppSelector(selectAllCampaigns)
   const memberCounts = useAppSelector(selectMemberCounts)
   const users = useAppSelector(selectUserEntities)
+  const status = useAppSelector(selectCampaignsStatus)
 
   const [statusFilter, setStatusFilter] = useState("all")
   const [typeFilter, setTypeFilter] = useState("all")
   const [formOpen, setFormOpen] = useState(false)
   const [editing, setEditing] = useState<Campaign | null>(null)
   const [pendingDelete, setPendingDelete] = useState<Campaign | null>(null)
+  const [isSaving, setIsSaving] = useState(false)
+  const [isDeleting, setIsDeleting] = useState(false)
+
+  useEffect(() => {
+    dispatch(fetchUsers())
+  }, [dispatch])
+
+  useEffect(() => {
+    dispatch(
+      fetchCampaigns({
+        ...(statusFilter !== "all" && { status: statusFilter as CampaignStatus }),
+        ...(typeFilter !== "all" && { type: typeFilter as CampaignType }),
+      })
+    )
+  }, [dispatch, statusFilter, typeFilter])
 
   const visible = useMemo(
     () =>
@@ -203,6 +221,11 @@ const Campaigns = () => {
     <>
       <PageHeader />
       <MainContentWrapper className="space-y-6 px-8">
+        {status === "loading" && campaigns.length === 0 ? (
+          <div className="rounded-lg border border-border bg-surface p-8 text-center text-sm text-muted-foreground">
+            Loading campaigns…
+          </div>
+        ) : (
         <DataTable
           columns={columns}
           data={visible}
@@ -252,31 +275,46 @@ const Campaigns = () => {
             </Button>
           }
         />
+        )}
       </MainContentWrapper>
 
       <CampaignFormModal
         isOpen={formOpen}
         campaign={editing}
+        isLoading={isSaving}
         onClose={() => {
           setFormOpen(false)
           setEditing(null)
         }}
-        onSave={(draft: CampaignDraft) => {
-          if (editing) {
-            dispatch(campaignUpdated({ id: editing.id, changes: draft }))
-          } else {
-            dispatch(campaignAdded(draft))
+        onSave={async (draft: CampaignDraft) => {
+          setIsSaving(true)
+          try {
+            if (editing) {
+              await dispatch(updateCampaign({ id: editing.id, changes: draft }))
+            } else {
+              await dispatch(createCampaign(draft))
+            }
+          } finally {
+            setIsSaving(false)
+            setFormOpen(false)
+            setEditing(null)
           }
-          setFormOpen(false)
-          setEditing(null)
         }}
       />
 
       <ConfirmDeleteModal
         isOpen={!!pendingDelete}
+        isLoading={isDeleting}
         onClose={() => setPendingDelete(null)}
-        onConfirm={() => {
-          if (pendingDelete) dispatch(campaignRemoved(pendingDelete.id))
+        onConfirm={async () => {
+          if (!pendingDelete) return
+          setIsDeleting(true)
+          try {
+            await dispatch(deleteCampaign(pendingDelete.id))
+          } finally {
+            setIsDeleting(false)
+            setPendingDelete(null)
+          }
         }}
         title="Delete campaign"
         description={`Delete "${pendingDelete?.name}"? Its audience membership will be removed too.`}

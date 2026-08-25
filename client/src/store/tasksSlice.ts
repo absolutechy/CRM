@@ -1,14 +1,23 @@
 import {
+  createAsyncThunk,
   createEntityAdapter,
   createSelector,
   createSlice,
-  nanoid,
   type PayloadAction,
 } from "@reduxjs/toolkit"
+import { toast } from "sonner"
 
 import type { Task, TaskStatus } from "@/types/crm"
 import type { RootState } from "./index"
-import { SEED_TASKS } from "./seed"
+import {
+  changeTaskStatus as changeTaskStatusRequest,
+  createTask as createTaskRequest,
+  deleteTask as deleteTaskRequest,
+  getTask as getTaskRequest,
+  getTasks as getTasksRequest,
+  updateTask as updateTaskRequest,
+  type TasksFilters,
+} from "@/services/tasksService"
 
 const tasksAdapter = createEntityAdapter<Task>({
   sortComparer: (a, b) => b.createdAt.localeCompare(a.createdAt),
@@ -16,27 +25,77 @@ const tasksAdapter = createEntityAdapter<Task>({
 
 export type TaskDraft = Omit<Task, "id" | "createdAt">
 
+type TasksStatus = "idle" | "loading" | "succeeded" | "failed"
+
+interface TasksState {
+  status: TasksStatus
+  error: string | null
+}
+
+const initialState = tasksAdapter.getInitialState<TasksState>({
+  status: "idle",
+  error: null,
+})
+
+// ---------------------------------------------------------------- thunks
+
+export const fetchTasks = createAsyncThunk(
+  "tasks/fetchTasks",
+  async (filters: TasksFilters = {}) => {
+    return getTasksRequest(filters)
+  }
+)
+
+export const fetchTask = createAsyncThunk(
+  "tasks/fetchTask",
+  async (id: string) => {
+    const { task } = await getTaskRequest(id)
+    return task
+  }
+)
+
+export const createTask = createAsyncThunk(
+  "tasks/createTask",
+  async (draft: Partial<Task>) => {
+    const { task } = await createTaskRequest(draft)
+    return task
+  }
+)
+
+export const updateTask = createAsyncThunk(
+  "tasks/updateTask",
+  async ({ id, changes }: { id: string; changes: Partial<Task> }) => {
+    const { task } = await updateTaskRequest(id, changes)
+    return task
+  }
+)
+
+export const changeTaskStatus = createAsyncThunk(
+  "tasks/changeTaskStatus",
+  async ({ id, status }: { id: string; status: TaskStatus }) => {
+    const { task } = await changeTaskStatusRequest(id, status)
+    return task
+  }
+)
+
+export const deleteTask = createAsyncThunk(
+  "tasks/deleteTask",
+  async (id: string) => {
+    await deleteTaskRequest(id)
+    return id
+  }
+)
+
+// ---------------------------------------------------------------- slice
+
 const tasksSlice = createSlice({
   name: "tasks",
-  initialState: tasksAdapter.setAll(tasksAdapter.getInitialState(), SEED_TASKS),
+  initialState,
   reducers: {
-    taskAdded: {
-      reducer: tasksAdapter.addOne,
-      prepare: (draft: TaskDraft) => ({
-        payload: {
-          ...draft,
-          id: nanoid(),
-          createdAt: new Date().toISOString(),
-        } satisfies Task,
-      }),
-    },
-    taskUpdated: (
-      state,
-      action: PayloadAction<{ id: string; changes: Partial<Task> }>
-    ) => {
-      tasksAdapter.updateOne(state, action.payload)
-    },
-    /** Kanban drag-and-drop. Moving to `done` stamps `completedAt`. */
+    /** Local actions kept for compatibility and optimistic updates. */
+    taskAdded: tasksAdapter.addOne,
+    taskUpdated: tasksAdapter.updateOne,
+    taskRemoved: tasksAdapter.removeOne,
     taskStatusChanged: (
       state,
       action: PayloadAction<{ id: string; status: TaskStatus }>
@@ -47,7 +106,70 @@ const tasksSlice = createSlice({
       task.completedAt =
         action.payload.status === "done" ? new Date().toISOString() : undefined
     },
-    taskRemoved: tasksAdapter.removeOne,
+  },
+  extraReducers: (builder) => {
+    builder
+      // fetchTasks
+      .addCase(fetchTasks.pending, (state) => {
+        state.status = "loading"
+        state.error = null
+      })
+      .addCase(fetchTasks.fulfilled, (state, action) => {
+        state.status = "succeeded"
+        state.error = null
+        tasksAdapter.setAll(state, action.payload.tasks)
+      })
+      .addCase(fetchTasks.rejected, (state, action) => {
+        state.status = "failed"
+        state.error =
+          typeof action.error.message === "string"
+            ? action.error.message
+            : "Failed to load tasks"
+        toast.error("Failed to load tasks")
+      })
+
+      // fetchTask
+      .addCase(fetchTask.fulfilled, (state, action) => {
+        tasksAdapter.upsertOne(state, action.payload)
+      })
+
+      // createTask
+      .addCase(createTask.fulfilled, (state, action) => {
+        tasksAdapter.addOne(state, action.payload)
+        state.status = "succeeded"
+        toast.success("Task created")
+      })
+      .addCase(createTask.rejected, (_state, action) => {
+        toast.error(action.error.message ?? "Failed to create task")
+      })
+
+      // updateTask
+      .addCase(updateTask.fulfilled, (state, action) => {
+        tasksAdapter.upsertOne(state, action.payload)
+        state.status = "succeeded"
+        toast.success("Task updated")
+      })
+      .addCase(updateTask.rejected, (_state, action) => {
+        toast.error(action.error.message ?? "Failed to update task")
+      })
+
+      // changeTaskStatus
+      .addCase(changeTaskStatus.fulfilled, (state, action) => {
+        tasksAdapter.upsertOne(state, action.payload)
+        toast.success("Task moved")
+      })
+      .addCase(changeTaskStatus.rejected, (_state, action) => {
+        toast.error(action.error.message ?? "Failed to move task")
+      })
+
+      // deleteTask
+      .addCase(deleteTask.fulfilled, (state, action) => {
+        tasksAdapter.removeOne(state, action.payload)
+        toast.success("Task deleted")
+      })
+      .addCase(deleteTask.rejected, (_state, action) => {
+        toast.error(action.error.message ?? "Failed to delete task")
+      })
   },
 })
 
@@ -60,6 +182,9 @@ export default tasksSlice.reducer
 
 export const { selectAll: selectAllTasks, selectById: selectTaskById } =
   tasksAdapter.getSelectors<RootState>((state) => state.tasks)
+
+export const selectTasksStatus = (state: RootState) => state.tasks.status
+export const selectTasksError = (state: RootState) => state.tasks.error
 
 export const selectTasksByStatus = createSelector([selectAllTasks], (tasks) => ({
   backlog: tasks.filter((t) => t.status === "backlog"),

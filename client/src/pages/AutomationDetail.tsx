@@ -7,12 +7,13 @@ import RuleBuilder from "@/components/pages/automations/RuleBuilder"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Switch } from "@/components/ui/switch"
-import { publishRule } from "@/services/automationService"
 import { useAppDispatch, useAppSelector } from "@/store/hooks"
 import {
-  ruleToggled,
-  ruleUpdated,
+  fetchRule,
   selectRuleById,
+  selectRulesStatus,
+  toggleAutomationRule,
+  updateAutomationRule,
   type RuleDraft,
 } from "@/store/automationsSlice"
 import type { RootState } from "@/store"
@@ -23,14 +24,28 @@ const AutomationDetail = () => {
   const dispatch = useAppDispatch()
 
   const rule = useAppSelector((s: RootState) => selectRuleById(s, id))
+  const status = useAppSelector(selectRulesStatus)
   const [draft, setDraft] = useState<RuleDraft | null>(null)
   const [notice, setNotice] = useState<string | null>(null)
+  const [isSaving, setIsSaving] = useState(false)
+
+  useEffect(() => {
+    if (id) dispatch(fetchRule(id))
+  }, [dispatch, id])
 
   useEffect(() => {
     if (!rule) return
     const { id: _id, createdAt: _c, updatedAt: _u, ...rest } = rule
     setDraft(rest)
   }, [rule])
+
+  if (status === "loading" && !rule) {
+    return (
+      <MainContentWrapper className="px-8 py-16 text-center text-sm text-muted-foreground">
+        Loading rule…
+      </MainContentWrapper>
+    )
+  }
 
   if (!rule || !draft) {
     return (
@@ -51,9 +66,22 @@ const AutomationDetail = () => {
   }
 
   const handleSave = async () => {
-    dispatch(ruleUpdated({ id: rule.id, changes: draft }))
-    const res = await publishRule({ ...rule, ...draft })
-    setNotice(res.message)
+    setIsSaving(true)
+    setNotice(null)
+    try {
+      await dispatch(updateAutomationRule({ id: rule.id, changes: draft })).unwrap()
+      setNotice("Rule saved")
+    } catch (error) {
+      setNotice(
+        error instanceof Error ? error.message : "Failed to save rule"
+      )
+    } finally {
+      setIsSaving(false)
+    }
+  }
+
+  const handleToggle = (enabled: boolean) => {
+    dispatch(toggleAutomationRule({ id: rule.id, enabled }))
   }
 
   const canSave = draft.name.trim().length > 0
@@ -90,11 +118,11 @@ const AutomationDetail = () => {
               Enabled
               <Switch
                 checked={rule.enabled}
-                onCheckedChange={() => dispatch(ruleToggled(rule.id))}
+                onCheckedChange={handleToggle}
                 aria-label="Enable rule"
               />
             </label>
-            <Button size="sm" onClick={handleSave} disabled={!canSave}>
+            <Button size="sm" onClick={handleSave} disabled={!canSave} loading={isSaving}>
               <Save />
               Save
             </Button>
@@ -121,7 +149,7 @@ const AutomationDetail = () => {
           <Button variant="outline" onClick={() => navigate("/automations")}>
             Back
           </Button>
-          <Button onClick={handleSave} disabled={!canSave}>
+          <Button onClick={handleSave} disabled={!canSave} loading={isSaving}>
             <Save />
             Save rule
           </Button>

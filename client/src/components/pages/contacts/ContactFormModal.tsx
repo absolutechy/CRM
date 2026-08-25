@@ -26,6 +26,7 @@ interface ContactFormModalProps {
   onSave: (draft: ContactDraft) => void
   /** Present when editing; omit to create. */
   contact?: Contact | null
+  isLoading?: boolean
 }
 
 const STATUSES: ContactStatus[] = ["Active", "Inactive", "Pending"]
@@ -47,6 +48,7 @@ const ContactFormModal: React.FC<ContactFormModalProps> = ({
   onClose,
   onSave,
   contact,
+  isLoading = false,
 }) => {
   const companies = useAppSelector(selectAllCompanies)
   const [draft, setDraft] = useState<ContactDraft>(emptyDraft)
@@ -299,7 +301,7 @@ const ContactFormModal: React.FC<ContactFormModalProps> = ({
           <Button type="button" variant="outline" onClick={onClose}>
             Cancel
           </Button>
-          <Button type="submit" disabled={!canSave}>
+          <Button type="submit" disabled={!canSave} loading={isLoading}>
             {contact ? "Save changes" : "Create contact"}
           </Button>
         </div>

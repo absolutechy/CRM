@@ -24,18 +24,10 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipTrigger,
-} from "@/components/ui/tooltip"
 import { DOCUMENT_CATEGORY_BADGE, formatDate, formatFileSize } from "@/lib/crm"
 import { useAppDispatch, useAppSelector } from "@/store/hooks"
-import {
-  documentAdded,
-  documentRemoved,
-  type DocumentDraft,
-} from "@/store/documentsSlice"
+import { deleteDocument } from "@/store/documentsSlice"
+import { downloadDocument } from "@/services/documentService"
 import { selectCompanyEntities } from "@/store/companiesSlice"
 import { selectContactEntities } from "@/store/contactsSlice"
 import { selectLeadEntities } from "@/store/leadsSlice"
@@ -72,6 +64,18 @@ const DocumentsPanel: React.FC<DocumentsPanelProps> = ({
 
   const [uploadOpen, setUploadOpen] = useState(false)
   const [pendingDelete, setPendingDelete] = useState<CrmDocument | null>(null)
+  const [isDeleting, setIsDeleting] = useState(false)
+
+  const handleDownload = async (doc: CrmDocument) => {
+    const res = await downloadDocument(doc.id)
+    if (res.ok && res.data) {
+      window.open(res.data, "_blank", "noopener,noreferrer")
+    } else {
+      // Surface a toast-like fallback: alert is heavy, but there's no other
+      // global toast from here. Keep it minimal.
+      window.alert(res.message)
+    }
+  }
 
   const linkedLabel = (doc: CrmDocument) => {
     if (doc.contactId) return contacts[doc.contactId]?.name ?? "—"
@@ -185,20 +189,10 @@ const DocumentsPanel: React.FC<DocumentsPanelProps> = ({
                 </Button>
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end">
-                {/* Storage isn't connected, so downloading is explicitly disabled. */}
-                <Tooltip>
-                  <TooltipTrigger asChild>
-                    <div>
-                      <DropdownMenuItem disabled>
-                        <Download />
-                        Download
-                      </DropdownMenuItem>
-                    </div>
-                  </TooltipTrigger>
-                  <TooltipContent side="left">
-                    Connect the storage backend to download files
-                  </TooltipContent>
-                </Tooltip>
+                <DropdownMenuItem onSelect={() => handleDownload(row.original)}>
+                  <Download />
+                  Download
+                </DropdownMenuItem>
                 <DropdownMenuSeparator />
                 <DropdownMenuItem
                   variant="destructive"
@@ -237,14 +231,21 @@ const DocumentsPanel: React.FC<DocumentsPanelProps> = ({
         isOpen={uploadOpen}
         onClose={() => setUploadOpen(false)}
         fixedLink={fixedLink}
-        onUpload={(draft: DocumentDraft) => dispatch(documentAdded(draft))}
       />
 
       <ConfirmDeleteModal
         isOpen={!!pendingDelete}
+        isLoading={isDeleting}
         onClose={() => setPendingDelete(null)}
-        onConfirm={() => {
-          if (pendingDelete) dispatch(documentRemoved(pendingDelete.id))
+        onConfirm={async () => {
+          if (!pendingDelete) return
+          setIsDeleting(true)
+          try {
+            await dispatch(deleteDocument(pendingDelete.id))
+          } finally {
+            setIsDeleting(false)
+            setPendingDelete(null)
+          }
         }}
         title="Remove document"
         description={`Remove "${pendingDelete?.name}" from this record?`}

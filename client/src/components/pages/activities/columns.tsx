@@ -85,7 +85,13 @@ export const interactionColumns: ColumnDef<InteractionRow>[] = [
   },
   {
     id: "actor",
-    accessorFn: (row) => row.activity.actor,
+    accessorFn: (row) => {
+      const actor = row.activity.actor as unknown
+      // Backend returns { id, name }; legacy/seed data uses a plain name string.
+      return typeof actor === "object" && actor !== null && "name" in actor
+        ? String((actor as { name: string }).name)
+        : String(actor ?? "")
+    },
     header: "Logged by",
     cell: ({ getValue }) => (
       <span className="text-muted-foreground">{getValue<string>()}</span>

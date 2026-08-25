@@ -14,9 +14,8 @@ import {
   SelectValue,
 } from "@/components/ui/select"
 import { applyTemplate, unresolvedTokens } from "@/lib/emailTemplates"
-import { sendEmail } from "@/services/emailService"
-import type { ServiceResult } from "@/services/types"
-import { useAppSelector } from "@/store/hooks"
+import { sendEmailThunk } from "@/store/emailSlice"
+import { useAppDispatch, useAppSelector } from "@/store/hooks"
 import { selectCompanyEntities } from "@/store/companiesSlice"
 import { selectAllContacts } from "@/store/contactsSlice"
 import {
@@ -24,7 +23,8 @@ import {
   selectAllTemplates,
 } from "@/store/emailSlice"
 import { selectAllLeads } from "@/store/leadsSlice"
-import { CURRENT_USER_ID, selectUserById } from "@/store/usersSlice"
+import { selectCurrentUser } from "@/store/authSlice"
+import { selectUserById } from "@/store/usersSlice"
 import type { RootState } from "@/store"
 
 interface EmailComposeModalProps {
@@ -41,13 +41,15 @@ const EmailComposeModal: React.FC<EmailComposeModalProps> = ({
   contactId = null,
   leadId = null,
 }) => {
+  const dispatch = useAppDispatch()
   const contacts = useAppSelector(selectAllContacts)
   const leads = useAppSelector(selectAllLeads)
   const companies = useAppSelector(selectCompanyEntities)
   const templates = useAppSelector(selectAllTemplates)
   const accounts = useAppSelector(selectAllEmailAccounts)
+  const currentUser = useAppSelector(selectCurrentUser)
   const sender = useAppSelector((s: RootState) =>
-    selectUserById(s, CURRENT_USER_ID)
+    selectUserById(s, currentUser?.id ?? "")
   )
 
   const [recipientKey, setRecipientKey] = useState("")
@@ -55,7 +57,8 @@ const EmailComposeModal: React.FC<EmailComposeModalProps> = ({
   const [templateId, setTemplateId] = useState("none")
   const [subject, setSubject] = useState("")
   const [body, setBody] = useState("")
-  const [result, setResult] = useState<ServiceResult<unknown> | null>(null)
+  const [sending, setSending] = useState(false)
+  const [notice, setNotice] = useState<string | null>(null)
 
   // One flat recipient list spanning contacts and leads.
   const recipients = useMemo(
@@ -89,7 +92,7 @@ const EmailComposeModal: React.FC<EmailComposeModalProps> = ({
     setTemplateId("none")
     setSubject("")
     setBody("")
-    setResult(null)
+    setNotice(null)
   }, [isOpen, contactId, leadId, accounts])
 
   /** Applying a template fills subject + body with tokens resolved. */
@@ -111,20 +114,36 @@ const EmailComposeModal: React.FC<EmailComposeModalProps> = ({
   const canSend = !!selected && subject.trim().length > 0
 
   const handleSend = async () => {
-    if (!selected) return
-    const res = await sendEmail({
-      accountId,
-      to: [selected.email],
-      cc: [],
-      subject,
-      body,
-      contactId: recipientKey.startsWith("contact:")
-        ? recipientKey.slice(8)
-        : null,
-      leadId: recipientKey.startsWith("lead:") ? recipientKey.slice(5) : null,
-      templateId: templateId === "none" ? null : templateId,
-    })
-    setResult(res)
+    if (!selected || sending) return
+    setSending(true)
+    setNotice(null)
+    try {
+      const result = await dispatch(
+        sendEmailThunk({
+          accountId,
+          to: [selected.email],
+          cc: [],
+          subject,
+          body,
+          contactId: recipientKey.startsWith("contact:")
+            ? recipientKey.slice(8)
+            : null,
+          leadId: recipientKey.startsWith("lead:") ? recipientKey.slice(5) : null,
+          templateId: templateId === "none" ? null : templateId,
+        })
+      ).unwrap()
+      if (!result.sent) {
+        setNotice(result.message)
+        return
+      }
+      onClose()
+    } catch (error) {
+      setNotice(
+        error instanceof Error ? error.message : "Failed to send email."
+      )
+    } finally {
+      setSending(false)
+    }
   }
 
   return (
@@ -214,24 +233,24 @@ const EmailComposeModal: React.FC<EmailComposeModalProps> = ({
           </p>
         )}
 
-        {/* Honest backend state — nothing is sent. */}
-        {result?.pending && (
+        {/* Result / notice banner */}
+        {notice && (
           <div className="flex items-start gap-2.5 rounded-lg border border-border bg-info-soft p-3">
             <Info className="mt-0.5 size-4 shrink-0 text-info-strong" />
             <div className="text-sm">
               <p className="font-medium text-info-strong">Not sent</p>
-              <p className="text-muted-foreground">{result.message}</p>
+              <p className="text-muted-foreground">{notice}</p>
             </div>
           </div>
         )}
 
         <div className="flex justify-end gap-2 border-t border-border pt-4">
-          <Button variant="outline" onClick={onClose}>
+          <Button variant="outline" onClick={onClose} disabled={sending}>
             Close
           </Button>
-          <Button onClick={handleSend} disabled={!canSend}>
+          <Button onClick={handleSend} disabled={!canSend} loading={sending}>
             <Send />
-            Send
+            {sending ? "Sending…" : "Send"}
           </Button>
         </div>
       </div>

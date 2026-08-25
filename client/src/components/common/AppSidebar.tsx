@@ -24,8 +24,19 @@ import {
 import { Link, useLocation } from "react-router"
 import Logo from "@/assets/img/common/logo-new.png"
 import Favicon from "@/assets/img/common/favicon.png"
+import type { UserRole } from "@/types/crm"
+import { useAppSelector } from "@/store/hooks"
+import { selectCurrentUser } from "@/store/authSlice"
 
-const menuItems = [
+interface MenuItem {
+  title: string
+  icon: typeof Users
+  url: string
+  /** Roles allowed to see this item. Undefined = visible to everyone. */
+  roles?: UserRole[]
+}
+
+const menuItems: MenuItem[] = [
   { title: "Leads", icon: UserPlus, url: "/leads" },
   { title: "Contacts", icon: Users, url: "/contacts" },
   { title: "Companies", icon: Building2, url: "/companies" },
@@ -45,6 +56,11 @@ const menuItems = [
 
 const AppSidebar: React.FC = ({ ...props }: React.ComponentProps<typeof Sidebar>) => {
   const { pathname } = useLocation()
+  const user = useAppSelector(selectCurrentUser)
+
+  const visibleItems = menuItems.filter(
+    (item) => !item.roles || (user && item.roles.includes(user.role))
+  )
 
   return (
     <Sidebar className="py-4" collapsible="icon" {...props}>
@@ -75,7 +91,7 @@ const AppSidebar: React.FC = ({ ...props }: React.ComponentProps<typeof Sidebar>
       <SidebarContent>
         <SidebarGroup>
           <SidebarMenu>
-            {menuItems.map((item) => (
+            {visibleItems.map((item) => (
               <SidebarMenuItem key={item.title}>
                 <SidebarMenuButton
                   asChild

@@ -1,4 +1,4 @@
-import { useState } from "react"
+import { useEffect, useState } from "react"
 import { Info, Plus, Trash2, Workflow, Zap } from "lucide-react"
 import { Link, useNavigate } from "react-router"
 
@@ -12,10 +12,12 @@ import { actionMeta, TRIGGER_ENTITIES, TRIGGER_EVENTS } from "@/lib/automationSc
 import { formatDate } from "@/lib/crm"
 import { useAppDispatch, useAppSelector } from "@/store/hooks"
 import {
-  ruleAdded,
-  ruleRemoved,
-  ruleToggled,
+  createAutomationRule,
+  deleteAutomationRule,
+  fetchRules,
   selectAllRules,
+  selectRulesStatus,
+  toggleAutomationRule,
 } from "@/store/automationsSlice"
 import type { AutomationRule } from "@/types/crm"
 
@@ -31,11 +33,17 @@ const Automations = () => {
   const dispatch = useAppDispatch()
   const navigate = useNavigate()
   const rules = useAppSelector(selectAllRules)
+  const status = useAppSelector(selectRulesStatus)
   const [pendingDelete, setPendingDelete] = useState<AutomationRule | null>(null)
+  const [isDeleting, setIsDeleting] = useState(false)
 
-  const handleCreate = () => {
-    const action = dispatch(
-      ruleAdded({
+  useEffect(() => {
+    dispatch(fetchRules())
+  }, [dispatch])
+
+  const handleCreate = async () => {
+    const result = await dispatch(
+      createAutomationRule({
         name: "Untitled rule",
         description: "",
         enabled: false,
@@ -43,8 +51,12 @@ const Automations = () => {
         conditions: [],
         actions: [],
       })
-    )
-    navigate(`/automations/${action.payload.id}`)
+    ).unwrap()
+    navigate(`/automations/${result.id}`)
+  }
+
+  const handleToggle = (rule: AutomationRule) => {
+    dispatch(toggleAutomationRule({ id: rule.id, enabled: !rule.enabled }))
   }
 
   return (
@@ -76,7 +88,11 @@ const Automations = () => {
           </Button>
         </div>
 
-        {rules.length === 0 ? (
+        {status === "loading" && rules.length === 0 ? (
+          <div className="flex flex-col items-center gap-2 rounded-lg border border-border bg-surface py-16 text-center">
+            <p className="text-sm text-muted-foreground">Loading rules…</p>
+          </div>
+        ) : rules.length === 0 ? (
           <div className="flex flex-col items-center gap-2 rounded-lg border border-border bg-surface py-16 text-center">
             <span className="flex size-10 items-center justify-center rounded-full bg-muted">
               <Workflow className="size-5 text-muted-foreground" />
@@ -108,7 +124,7 @@ const Automations = () => {
                   </div>
                   <Switch
                     checked={rule.enabled}
-                    onCheckedChange={() => dispatch(ruleToggled(rule.id))}
+                    onCheckedChange={() => handleToggle(rule)}
                     aria-label={`Enable ${rule.name}`}
                   />
                 </div>
@@ -161,9 +177,17 @@ const Automations = () => {
 
       <ConfirmDeleteModal
         isOpen={!!pendingDelete}
+        isLoading={isDeleting}
         onClose={() => setPendingDelete(null)}
-        onConfirm={() => {
-          if (pendingDelete) dispatch(ruleRemoved(pendingDelete.id))
+        onConfirm={async () => {
+          if (!pendingDelete) return
+          setIsDeleting(true)
+          try {
+            await dispatch(deleteAutomationRule(pendingDelete.id))
+          } finally {
+            setIsDeleting(false)
+            setPendingDelete(null)
+          }
         }}
         title="Delete rule"
         description={`Delete "${pendingDelete?.name}"? This cannot be undone.`}

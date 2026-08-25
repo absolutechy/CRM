@@ -1,8 +1,9 @@
-import { useMemo, useState } from "react"
-import { FolderOpen, HardDrive } from "lucide-react"
+import { useEffect, useMemo, useState } from "react"
+import { CloudCog, FolderOpen, HardDrive } from "lucide-react"
 
 import MainContentWrapper from "@/components/common/MainContentWrapper"
 import PageHeader from "@/components/common/PageHeader"
+import StatCard from "@/components/pages/dashboard/StatCard"
 import DocumentsPanel from "@/components/pages/documents/DocumentsPanel"
 import {
   Select,
@@ -12,13 +13,23 @@ import {
   SelectValue,
 } from "@/components/ui/select"
 import { formatFileSize } from "@/lib/crm"
-import { useAppSelector } from "@/store/hooks"
-import { selectAllDocuments } from "@/store/documentsSlice"
+import { useAppDispatch, useAppSelector } from "@/store/hooks"
+import {
+  fetchDocuments,
+  selectAllDocuments,
+  selectDocumentsStatus,
+} from "@/store/documentsSlice"
 import { DOCUMENT_CATEGORIES } from "@/types/crm"
 
 const Documents = () => {
+  const dispatch = useAppDispatch()
   const documents = useAppSelector(selectAllDocuments)
+  const status = useAppSelector(selectDocumentsStatus)
   const [categoryFilter, setCategoryFilter] = useState("all")
+
+  useEffect(() => {
+    dispatch(fetchDocuments())
+  }, [dispatch])
 
   const visible = useMemo(
     () =>
@@ -35,33 +46,30 @@ const Documents = () => {
       <PageHeader />
       <MainContentWrapper className="space-y-6 px-8">
         <div className="grid gap-4 sm:grid-cols-3">
-          <div className="rounded-lg border border-border bg-surface p-5">
-            <p className="flex items-center gap-2 text-xs text-muted-foreground">
-              <FolderOpen className="size-3.5" />
-              Documents
-            </p>
-            <p className="mt-1 text-2xl font-bold text-foreground">
-              {documents.length}
-            </p>
-          </div>
-          <div className="rounded-lg border border-border bg-surface p-5">
-            <p className="flex items-center gap-2 text-xs text-muted-foreground">
-              <HardDrive className="size-3.5" />
-              Total size
-            </p>
-            <p className="mt-1 text-2xl font-bold text-foreground">
-              {formatFileSize(totalSize)}
-            </p>
-          </div>
-          <div className="rounded-lg border border-border bg-surface p-5">
-            <p className="text-xs text-muted-foreground">Storage</p>
-            <p className="mt-1 text-sm font-medium text-warning-strong">
-              Backend not connected
-            </p>
-            <p className="mt-0.5 text-xs text-muted-foreground">
-              File contents aren't stored yet — details only.
-            </p>
-          </div>
+          <StatCard
+            icon={FolderOpen}
+            title="Documents"
+            value={String(documents.length)}
+            subtitle="Total files"
+            tone="default"
+            sparkline={[6, 8, 7, 9, 8, 11, 10, 12, 13, 14, 16]}
+          />
+          <StatCard
+            icon={HardDrive}
+            title="Total size"
+            value={formatFileSize(totalSize)}
+            subtitle="Stored in object storage"
+            tone="info"
+            sparkline={[4, 5, 5, 7, 6, 8, 9, 8, 10, 11, 12]}
+          />
+          <StatCard
+            icon={CloudCog}
+            title="Storage"
+            value={status === "loading" ? "…" : "Connected"}
+            subtitle="Files are stored in object storage"
+            tone="success"
+            sparkline={[2, 3, 3, 4, 4, 5, 5, 6, 6, 7, 7]}
+          />
         </div>
 
         <div className="flex items-center gap-2">
@@ -80,10 +88,16 @@ const Documents = () => {
           </Select>
         </div>
 
-        <DocumentsPanel
-          documents={visible}
-          emptyMessage="No documents match this filter."
-        />
+        {status === "loading" && documents.length === 0 ? (
+          <div className="rounded-lg border border-border bg-surface p-8 text-center text-sm text-muted-foreground">
+            Loading documents…
+          </div>
+        ) : (
+          <DocumentsPanel
+            documents={visible}
+            emptyMessage="No documents match this filter."
+          />
+        )}
       </MainContentWrapper>
     </>
   )

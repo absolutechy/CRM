@@ -1,16 +1,20 @@
-import { useState, useCallback } from "react"
+import { useState, useCallback, useEffect } from "react"
 import TaskHeader, { type ViewType } from "@/components/pages/tasks/TaskHeader"
 import Column from "@/components/pages/tasks/Column"
 import TaskCard, { type TaskType } from "@/components/pages/tasks/TaskCard"
 import TaskForm from "@/components/pages/tasks/TaskForm"
 import { Modal } from "@/components/ui/modal"
 import { Input } from "@/components/ui/input"
+import ConfirmDeleteModal from "@/components/pages/contacts/ConfirmDeleteModal"
 import { useAppDispatch, useAppSelector } from "@/store/hooks"
 import {
+  changeTaskStatus,
+  createTask,
+  deleteTask,
+  fetchTasks,
   selectTasksByStatus,
-  taskAdded,
-  taskStatusChanged,
-  taskUpdated,
+  selectTasksStatus,
+  updateTask,
 } from "@/store/tasksSlice"
 import type { TaskPriority, TaskStatus } from "@/types/crm"
 import { TASK_STATUSES, TASK_STATUS_LABEL } from "@/types/crm"
@@ -30,6 +34,7 @@ interface TaskFormData {
 const Tasks = () => {
   const dispatch = useAppDispatch()
   const columns = useAppSelector(selectTasksByStatus)
+  const status = useAppSelector(selectTasksStatus)
 
   const [view, setView] = useState<ViewType>("kanban")
   const [selectedTask, setSelectedTask] = useState<TaskType | null>(null)
@@ -37,6 +42,13 @@ const Tasks = () => {
   const [taskTitle, setTaskTitle] = useState("")
   // Which column the new task should land in — set by that column's + button.
   const [newTaskStatus, setNewTaskStatus] = useState<TaskStatus>("todo")
+  const [isSaving, setIsSaving] = useState(false)
+  const [pendingDelete, setPendingDelete] = useState<TaskType | null>(null)
+  const [isDeleting, setIsDeleting] = useState(false)
+
+  useEffect(() => {
+    dispatch(fetchTasks())
+  }, [dispatch])
 
   const openCreateTaskModal = useCallback((status: TaskStatus = "todo") => {
     setSelectedTask(null)
@@ -62,34 +74,46 @@ const Tasks = () => {
 
   const handleDropTask = useCallback(
     (taskId: string, newStatus: TaskStatus) => {
-      dispatch(taskStatusChanged({ id: taskId, status: newStatus }))
+      dispatch(changeTaskStatus({ id: taskId, status: newStatus }))
     },
     [dispatch]
   )
 
-  const handleSave = (data: TaskFormData) => {
-    // The form's "member" select carries a user id, or "unassigned".
-    const assigneeId =
-      !data.member || data.member === "unassigned" ? null : data.member
+  const handleSave = async (data: TaskFormData) => {
+    setIsSaving(true)
+    try {
+      // The form's "member" select carries a user id, or "unassigned".
+      const assigneeId =
+        !data.member || data.member === "unassigned" ? null : data.member
 
-    const shared = {
-      title: taskTitle.trim() || "Untitled Task",
-      description: data.description ?? "",
-      priority: data.priority ?? "Medium",
-      status: data.status ?? newTaskStatus,
-      assigneeId,
-      dueDate: data.dueDate,
-      checklists: data.checklists ?? [],
-      comments: data.comments ?? [],
-      attachments: data.attachments ?? [],
-    }
+      const shared = {
+        title: taskTitle.trim() || "Untitled Task",
+        description: data.description ?? "",
+        priority: data.priority ?? "Medium",
+        status: data.status ?? newTaskStatus,
+        assigneeId,
+        dueDate: data.dueDate,
+        checklists: data.checklists ?? [],
+        comments: data.comments ?? [],
+        attachments: data.attachments ?? [],
+      }
 
-    if (selectedTask) {
-      dispatch(taskUpdated({ id: selectedTask.id, changes: shared }))
-    } else {
-      dispatch(taskAdded({ ...shared, contactId: null, leadId: null, dealId: null }))
+      if (selectedTask) {
+        await dispatch(updateTask({ id: selectedTask.id, changes: shared }))
+      } else {
+        await dispatch(
+          createTask({
+            ...shared,
+            contactId: null,
+            leadId: null,
+            dealId: null,
+          })
+        )
+      }
+    } finally {
+      setIsSaving(false)
+      closeTaskModal()
     }
-    closeTaskModal()
   }
 
   return (
@@ -101,22 +125,29 @@ const Tasks = () => {
       />
 
       <div className="flex-1 overflow-x-auto p-8">
-        {view === "kanban" ? (
+        {status === "loading" &&
+        Object.values(columns).every((arr) => arr.length === 0) ? (
+          <div className="flex h-full items-center justify-center rounded-lg border border-border bg-surface text-sm text-muted-foreground">
+            Loading tasks…
+          </div>
+        ) : view === "kanban" ? (
           <div className="flex gap-6 h-full items-start">
-            {TASK_STATUSES.map((status) => (
+            {TASK_STATUSES.map((taskStatus) => (
               <Column
-                key={status}
-                title={TASK_STATUS_LABEL[status]}
-                status={status}
-                count={columns[status].length}
+                key={taskStatus}
+                title={TASK_STATUS_LABEL[taskStatus]}
+                status={taskStatus}
+                count={columns[taskStatus].length}
                 onDropTask={handleDropTask}
-                onAddClick={() => openCreateTaskModal(status)}
+                onAddClick={() => openCreateTaskModal(taskStatus)}
               >
-                {columns[status].map((task) => (
+                {columns[taskStatus].map((task) => (
                   <TaskCard
                     key={task.id}
                     task={task}
                     onClick={openEditTaskModal}
+                    onEdit={openEditTaskModal}
+                    onDelete={setPendingDelete}
                   />
                 ))}
               </Column>
@@ -145,8 +176,27 @@ const Tasks = () => {
           initialData={selectedTask}
           onSave={handleSave}
           onCancel={closeTaskModal}
+          isSaving={isSaving}
         />
       </Modal>
+
+      <ConfirmDeleteModal
+        isOpen={!!pendingDelete}
+        isLoading={isDeleting}
+        onClose={() => setPendingDelete(null)}
+        onConfirm={async () => {
+          if (!pendingDelete) return
+          setIsDeleting(true)
+          try {
+            await dispatch(deleteTask(pendingDelete.id))
+          } finally {
+            setIsDeleting(false)
+            setPendingDelete(null)
+          }
+        }}
+        title="Delete task"
+        description={`Delete "${pendingDelete?.title}"? This cannot be undone.`}
+      />
     </div>
   )
 }

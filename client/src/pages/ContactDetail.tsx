@@ -1,4 +1,4 @@
-import { useState } from "react"
+import { useEffect, useState } from "react"
 import {
   ArrowLeft,
   Merge,
@@ -22,10 +22,12 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { CONTACT_STATUS_BADGE, getInitials } from "@/lib/crm"
 import { useAppDispatch, useAppSelector } from "@/store/hooks"
 import {
-  contactRemoved,
-  contactUpdated,
+  deleteContact,
+  fetchContact,
   selectContactById,
+  selectContactsStatus,
   selectPotentialDuplicates,
+  updateContact,
   type ContactDraft,
 } from "@/store/contactsSlice"
 import { selectCompanyById } from "@/store/companiesSlice"
@@ -38,6 +40,7 @@ const ContactDetail = () => {
   const dispatch = useAppDispatch()
 
   const contact = useAppSelector((s: RootState) => selectContactById(s, id))
+  const status = useAppSelector(selectContactsStatus)
   const company = useAppSelector((s: RootState) =>
     contact?.companyId ? selectCompanyById(s, contact.companyId) : undefined
   )
@@ -50,6 +53,22 @@ const ContactDetail = () => {
 
   const [editOpen, setEditOpen] = useState(false)
   const [deleteOpen, setDeleteOpen] = useState(false)
+  const [isSaving, setIsSaving] = useState(false)
+  const [isDeleting, setIsDeleting] = useState(false)
+
+  useEffect(() => {
+    if (id) {
+      dispatch(fetchContact(id))
+    }
+  }, [dispatch, id])
+
+  if (status === "loading" && !contact) {
+    return (
+      <MainContentWrapper className="px-8 py-16 text-center text-sm text-muted-foreground">
+        Loading contact…
+      </MainContentWrapper>
+    )
+  }
 
   if (!contact) {
     return (
@@ -72,9 +91,25 @@ const ContactDetail = () => {
     )
   }
 
-  const handleSave = (draft: ContactDraft) => {
-    dispatch(contactUpdated({ id: contact.id, changes: draft }))
-    setEditOpen(false)
+  const handleSave = async (draft: ContactDraft) => {
+    setIsSaving(true)
+    try {
+      await dispatch(updateContact({ id: contact.id, changes: draft }))
+    } finally {
+      setIsSaving(false)
+      setEditOpen(false)
+    }
+  }
+
+  const handleDelete = async () => {
+    setIsDeleting(true)
+    try {
+      await dispatch(deleteContact(contact.id))
+      setDeleteOpen(false)
+      navigate("/contacts")
+    } finally {
+      setIsDeleting(false)
+    }
   }
 
   return (
@@ -200,17 +235,16 @@ const ContactDetail = () => {
       <ContactFormModal
         isOpen={editOpen}
         contact={contact}
+        isLoading={isSaving}
         onClose={() => setEditOpen(false)}
         onSave={handleSave}
       />
 
       <ConfirmDeleteModal
         isOpen={deleteOpen}
+        isLoading={isDeleting}
         onClose={() => setDeleteOpen(false)}
-        onConfirm={() => {
-          dispatch(contactRemoved(contact.id))
-          navigate("/contacts")
-        }}
+        onConfirm={handleDelete}
         title="Delete contact"
         description={`Delete ${contact.name}? This cannot be undone.`}
       />
