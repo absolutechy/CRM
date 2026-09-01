@@ -27,6 +27,12 @@ const schema = z.object({
   AUTH_COOKIE_NAME: z.string().default("refreshToken"),
 
   /**
+   * Shared secret that Vercel's cron sends as `Authorization: Bearer <secret>`
+   * to trigger POST /api/automations/run on serverless. Leave unset if unused.
+   */
+  CRON_SECRET: z.string().min(8).optional(),
+
+  /**
    * SameSite for the refresh cookie. Keep "lax" when the frontend and API are
    * on the same site. Set "none" when the frontend and API are on different
    * origins (e.g. frontend on Vercel, API elsewhere) — requires secure HTTPS.

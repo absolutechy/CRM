@@ -1,7 +1,9 @@
 import { Router } from "express"
 
-import { ok, created } from "@/lib/http"
+import { ok, created, ApiError } from "@/lib/http"
+import { env } from "@/config/env"
 import { authenticate } from "@/middleware/auth"
+import { scanInactiveRecords } from "@/automations/scheduler"
 import {
   clearAutomationRuns,
   createAutomationRule,
@@ -15,6 +17,22 @@ import {
 } from "@/services/automationsService"
 
 export const automationsRouter = Router()
+
+/**
+ * Triggered by Vercel's cron (vercel.json crons) to run the time-based scan.
+ * Vercel sends `Authorization: Bearer <CRON_SECRET>`; verified here instead of
+ * the user auth middleware because cron has no user session.
+ */
+automationsRouter.post("/run", async (req, res) => {
+  const auth = req.headers.authorization ?? ""
+  const secret = env.CRON_SECRET
+  if (!secret || auth !== `Bearer ${secret}`) {
+    throw ApiError.unauthorized("Invalid cron secret")
+  }
+
+  await scanInactiveRecords()
+  ok(res, { ran: true }, "Automation scan complete")
+})
 
 automationsRouter.use(authenticate)
 

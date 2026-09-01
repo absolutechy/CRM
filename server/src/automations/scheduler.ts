@@ -12,9 +12,10 @@ const daysAgo = (days: number) => new Date(Date.now() - days * 86_400_000)
 /**
  * Fires `inactive_for` rules: enabled rules with a `daysInactive` condition on
  * leads/contacts/deals get evaluated against records whose last activity is
- * older than the threshold. Runs in-process on a cron schedule.
+ * older than the threshold. Runs in-process on a cron schedule (long-running
+ * hosts) or via the /api/automations/run endpoint (serverless cron).
  */
-const scanInactiveRecords = async (): Promise<void> => {
+export const scanInactiveRecords = async (): Promise<void> => {
   try {
     const rules = await prisma.automationRule.findMany({
       where: { enabled: true, triggerEvent: "inactive_for" },
