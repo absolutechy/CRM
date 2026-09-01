@@ -34,7 +34,9 @@ const REFRESH_COOKIE = env.AUTH_COOKIE_NAME
 const refreshCookieOptions = (): CookieOptions => ({
   httpOnly: true,
   secure: isProd,
-  sameSite: "lax",
+  // Cross-site deploys (frontend on Vercel, API elsewhere) need SameSite=None
+  // + Secure; same-site deploys keep lax.
+  sameSite: env.AUTH_COOKIE_SAMESITE,
   path: "/api/auth",
   maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days, aligned with JWT_REFRESH_TTL
 })

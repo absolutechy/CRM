@@ -26,7 +26,15 @@ interface Envelope<T> {
   errors?: unknown
 }
 
-const BASE_URL = "/api"
+/**
+ * API base URL. In dev the Vite proxy forwards `/api` to the Express server.
+ * In production, set `VITE_API_URL` to your deployed backend origin (e.g.
+ * https://crm-api.example.com) — it must NOT include a trailing slash.
+ */
+const BASE_URL = (import.meta.env.VITE_API_URL as string | undefined)?.replace(
+  /\/$/,
+  ""
+) || "/api"
 
 let accessToken: string | null = null
 

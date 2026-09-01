@@ -26,6 +26,13 @@ const schema = z.object({
   /** Name of the httpOnly cookie that carries the refresh token. */
   AUTH_COOKIE_NAME: z.string().default("refreshToken"),
 
+  /**
+   * SameSite for the refresh cookie. Keep "lax" when the frontend and API are
+   * on the same site. Set "none" when the frontend and API are on different
+   * origins (e.g. frontend on Vercel, API elsewhere) — requires secure HTTPS.
+   */
+  AUTH_COOKIE_SAMESITE: z.enum(["lax", "none"]).default("lax"),
+
   // Storage is only required once documents land (phase 7), so these stay
   // optional and are checked at the point of use instead.
   S3_ENDPOINT: z.string().url().optional(),
