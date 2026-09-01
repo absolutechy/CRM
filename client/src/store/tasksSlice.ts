@@ -41,8 +41,8 @@ const initialState = tasksAdapter.getInitialState<TasksState>({
 
 export const fetchTasks = createAsyncThunk(
   "tasks/fetchTasks",
-  async (filters: TasksFilters = {}) => {
-    return getTasksRequest(filters)
+  async (filters: TasksFilters | undefined = {}) => {
+    return getTasksRequest(filters ?? {})
   }
 )
 

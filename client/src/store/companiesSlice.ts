@@ -3,7 +3,6 @@ import {
   createEntityAdapter,
   createSelector,
   createSlice,
-  type PayloadAction,
 } from "@reduxjs/toolkit"
 import { toast } from "sonner"
 
@@ -40,8 +39,8 @@ const initialState = companiesAdapter.getInitialState<CompaniesState>({
 
 export const fetchCompanies = createAsyncThunk(
   "companies/fetchCompanies",
-  async (filters: CompaniesFilters = {}) => {
-    return getCompaniesRequest(filters)
+  async (filters: CompaniesFilters | undefined = {}) => {
+    return getCompaniesRequest(filters ?? {})
   }
 )
 

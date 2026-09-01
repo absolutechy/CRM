@@ -44,7 +44,6 @@ import { selectContactEntities } from "@/store/contactsSlice"
 import {
   changeDealStage,
   createDeal,
-  dealStageChanged,
   deleteDeal,
   fetchDeals,
   selectAllDeals,

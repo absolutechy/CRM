@@ -3,12 +3,10 @@ import {
   createEntityAdapter,
   createSelector,
   createSlice,
-  type PayloadAction,
 } from "@reduxjs/toolkit"
 import { toast } from "sonner"
 
 import type { Contact } from "@/types/crm"
-import { EMPTY_ADDRESS, EMPTY_SOCIAL } from "@/types/crm"
 import type { RootState } from "./index"
 import {
   createContact as createContactRequest,
@@ -41,8 +39,8 @@ const initialState = contactsAdapter.getInitialState<ContactsState>({
 
 export const fetchContacts = createAsyncThunk(
   "contacts/fetchContacts",
-  async (filters: ContactsFilters = {}) => {
-    return getContactsRequest(filters)
+  async (filters: ContactsFilters | undefined = {}) => {
+    return getContactsRequest(filters ?? {})
   }
 )
 

@@ -34,6 +34,9 @@ const initialState = automationsAdapter.getInitialState<AutomationsState>({
   error: null,
 })
 
+/** Re-exported so the rule builder and detail page can type their drafts. */
+export type { RuleDraft } from "@/services/automationsService"
+
 // ---------------------------------------------------------------- thunks
 
 export const fetchRules = createAsyncThunk(

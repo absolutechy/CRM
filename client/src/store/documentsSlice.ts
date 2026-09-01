@@ -3,7 +3,6 @@ import {
   createEntityAdapter,
   createSelector,
   createSlice,
-  type PayloadAction,
 } from "@reduxjs/toolkit"
 import { toast } from "sonner"
 
