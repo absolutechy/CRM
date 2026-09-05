@@ -6,7 +6,6 @@
     // handles this natively in dev; tsc-alias rewrites them on build.
     "module": "ESNext",
     "moduleResolution": "Bundler",
-    "types": ["node"],
 
     "rootDir": "./src",
     "outDir": "./dist",
