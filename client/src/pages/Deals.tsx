@@ -275,7 +275,7 @@ const Deals = () => {
     <>
       <PageHeader />
       <MainContentWrapper className="space-y-6 px-8">
-        {/* Pipeline summary */}
+        {/* Pipeline summarys */}
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
           <StatCard
             icon={TrendingUp}
@@ -314,7 +314,7 @@ const Deals = () => {
         {/* View toggle */}
         {status === "loading" && deals.length === 0 ? (
           <div className="rounded-lg border border-border bg-surface p-8 text-center text-sm text-muted-foreground">
-            Loading deals…
+            Loading deales…
           </div>
         ) : (
           <>
