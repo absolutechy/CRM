@@ -1,6 +1,7 @@
 {
   "$schema": "https://openapi.vercel.sh/vercel.json",
-  "buildCommand": "prisma generate",
+  "framework": null,
+  "buildCommand": "npx prisma generate && npm run build",
   "outputDirectory": "public",
   "functions": {
     "api/index.ts": {
@@ -16,7 +17,7 @@
   "crons": [
     {
       "path": "/api/automations/run",
-      "schedule": "*/5 * * * *"
+      "schedule": "0 3 * * *"
     }
   ]
 }

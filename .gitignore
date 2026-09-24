@@ -44,3 +44,5 @@ coverage/
 # Optional: Ignore OS-specific metadata
 *.swp
 *~
+.vercel
+.env*

@@ -9,6 +9,8 @@
 
     "rootDir": "./src",
     "outDir": "./dist",
+    // api/index.ts imports from dist/, so it needs the emitted types.
+    "declaration": true,
     "sourceMap": true,
 
     /* Strictness — the client runs with the same settings. */
