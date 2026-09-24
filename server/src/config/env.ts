@@ -15,6 +15,13 @@ const schema = z.object({
 
   DATABASE_URL: z.string().min(1, "DATABASE_URL is required"),
 
+  /**
+   * Session-mode connection used only by the Prisma CLI (db push, migrate,
+   * seed, studio) — see prisma.config.ts. The running server never uses it,
+   * so it stays optional and is absent on serverless.
+   */
+  DIRECT_URL: z.string().optional(),
+
   JWT_ACCESS_SECRET: z.string().min(32, "JWT_ACCESS_SECRET must be >= 32 chars"),
   JWT_REFRESH_SECRET: z
     .string()

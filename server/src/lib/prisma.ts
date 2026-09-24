@@ -12,12 +12,27 @@ import { logger } from "./logger"
  */
 export const PRISMA_SCHEMA = "crm"
 
+/**
+ * Startup options that pin the search_path. A shared transaction-mode pooler
+ * (Supabase's port 6543) multiplexes sessions and may ignore or reject these,
+ * so PG_OPTIONS="" disables them — set the search_path on the role instead:
+ *
+ *   ALTER ROLE postgres IN DATABASE postgres SET search_path TO crm, public;
+ */
+const pgOptions = process.env.PG_OPTIONS ?? `-c search_path=${PRISMA_SCHEMA}`
+
+/**
+ * One lambda instance serves few concurrent requests but many instances share
+ * the pooler, so a large per-instance pool just exhausts the pooler's client
+ * slots. Keep it at 1 on serverless and use a real pool when long-lived.
+ */
+const poolMax = process.env.VERCEL ? 1 : 10
+
 const adapter = new PrismaPg(
   {
     connectionString: env.DATABASE_URL,
-    // pg startup options: route unqualified table names to the crm schema.
-    options: "-c search_path=crm",
-    max: 10,
+    ...(pgOptions ? { options: pgOptions } : {}),
+    max: poolMax,
   },
   {
     // Reported as metadata to Prisma; the actual routing is via search_path.
