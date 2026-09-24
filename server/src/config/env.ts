@@ -65,9 +65,10 @@ if (!parsed.success) {
   const issues = parsed.error.issues
     .map((i) => `  - ${i.path.join(".")}: ${i.message}`)
     .join("\n")
-  // eslint-disable-next-line no-console
-  console.error(`Invalid environment configuration:\n${issues}`)
-  process.exit(1)
+  // Throw rather than process.exit(): on serverless an exit code surfaces as an
+  // opaque "process exited with exit status 1", whereas a thrown error is
+  // logged together with the list of offending variables.
+  throw new Error(`Invalid environment configuration:\n${issues}`)
 }
 
 export const env = parsed.data
