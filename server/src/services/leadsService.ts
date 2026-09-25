@@ -34,10 +34,10 @@ export const leadCreateSchema = z.object({
   companyName: z.string().max(100).optional(),
   source: LeadSource.default("web"),
   status: LeadStatus.default("new"),
-  ownerId: z.string().uuid().nullable().optional(),
+  ownerId: z.string().cuid().nullable().optional(),
   estimatedValue: z.number().nonnegative().optional(),
   notes: z.string().optional(),
-  campaignId: z.string().uuid().nullable().optional(),
+  campaignId: z.string().cuid().nullable().optional(),
 })
 
 export const leadUpdateSchema = leadCreateSchema.partial()

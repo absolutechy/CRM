@@ -32,13 +32,23 @@ for (const file of walk(root)) {
     /(from\s+|import\s*\()(["'])(\.{1,2}\/[^"')]+)(["'])/g,
     (match, pre, q, spec, q2) => {
       if (!needsExt(spec)) return match
+      // "./foo" -> "./foo.js" when that file exists, otherwise "./foo/index.js"
+      // for a barrel directory. Node ESM supports neither bare form.
       try {
-        const stat = statSync(join(dir, spec + ".js"))
-        if (!stat.isFile()) return match
+        if (statSync(join(dir, spec + ".js")).isFile()) {
+          return `${pre}${q}${spec}.js${q2}`
+        }
+      } catch {
+        // fall through to the directory case
+      }
+      try {
+        if (statSync(join(dir, spec, "index.js")).isFile()) {
+          return `${pre}${q}${spec}/index.js${q2}`
+        }
       } catch {
         return match
       }
-      return `${pre}${q}${spec}.js${q2}`
+      return match
     }
   )
   if (src !== original) writeFileSync(file, src)
