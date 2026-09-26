@@ -1,0 +1,97 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+# A new push supersedes an in-flight run for the same ref.
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  server:
+    name: server (typecheck + tests)
+    runs-on: ubuntu-latest
+
+    services:
+      postgres:
+        image: postgres:17
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: crm_ci
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+
+    env:
+      # Read at install time (prisma.config.ts) and by vitest.config.ts, so it
+      # has to be set for the whole job, not just the test step. The suite runs
+      # in a `crm_test` schema that tests/globalSetup.ts creates here.
+      DATABASE_URL: postgresql://postgres:postgres@localhost:5432/crm_ci
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+          cache-dependency-path: server/package-lock.json
+
+      # postinstall runs `prisma generate`, which needs DATABASE_URL above.
+      - name: Install
+        working-directory: server
+        run: npm ci
+
+      - name: Typecheck
+        working-directory: server
+        run: npm run typecheck
+
+      - name: Test
+        working-directory: server
+        run: npm test
+
+      - name: Build
+        working-directory: server
+        run: npm run build
+
+  client:
+    name: client (typecheck + build)
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+          cache-dependency-path: client/package-lock.json
+
+      - name: Install
+        working-directory: client
+        run: npm ci
+
+      - name: Typecheck
+        working-directory: client
+        run: npm run typecheck
+
+      - name: Build
+        working-directory: client
+        run: npm run build
+
+      # Non-blocking: the client has 39 pre-existing lint errors (mostly
+      # react-refresh rules in generated shadcn components). Surfaced so the
+      # count is visible and can be driven down, but it must not gate merges
+      # until that backlog is cleared.
+      - name: Lint (non-blocking)
+        working-directory: client
+        run: npm run lint
+        continue-on-error: true
