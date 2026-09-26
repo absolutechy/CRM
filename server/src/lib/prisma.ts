@@ -6,11 +6,16 @@ import { logger } from "./logger"
 
 /**
  * Prisma 7 connects through a driver adapter rather than a URL in the schema.
- * The pool lives here so the whole app shares one. The `crm` schema is set via
- * the pg pool's search_path — the adapter's `schema` option only reports
- * metadata and does not qualify generated queries.
+ * The pool lives here so the whole app shares one.
+ *
+ * The adapter's `schema` option is NOT merely metadata: Prisma's query compiler
+ * qualifies every generated table name with it, which overrides whatever the
+ * pg pool's search_path says. So this is the single setting that decides which
+ * Postgres schema the ORM reads and writes — the search_path below only affects
+ * raw SQL. It is env-driven so the test suite can point at an isolated schema;
+ * getting this wrong means tests silently mutate development data.
  */
-export const PRISMA_SCHEMA = "crm"
+export const PRISMA_SCHEMA = process.env.PRISMA_SCHEMA ?? "crm"
 
 /**
  * Startup options that pin the search_path. A shared transaction-mode pooler

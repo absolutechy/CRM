@@ -36,7 +36,22 @@ This places new components under `client/src/components/ui`.
 ```bash
 npm run dev    # nodemon index.js
 ```
-`npm test` is a placeholder (`exit 1`) — no tests exist for the server.
+```bash
+npm test         # vitest run — API tests via supertest
+npm run test:watch
+```
+
+Tests run against a **`crm_test` schema** in the same Postgres as dev, created
+and pushed fresh by [tests/globalSetup.ts](server/tests/globalSetup.ts) on every
+run. Isolation hinges on `PRISMA_SCHEMA`, not `search_path`: Prisma's query
+compiler qualifies every table with the driver adapter's `schema` option, so
+setting only `PG_OPTIONS` isolates raw SQL while the ORM still writes to `crm`.
+[tests/isolation.test.ts](server/tests/isolation.test.ts) guards that.
+
+[tests/permissions.test.ts](server/tests/permissions.test.ts) is the access
+matrix — shared-read/privileged-write for contacts, companies and activities;
+owner-scoping for leads, deals, tasks and campaigns; privacy for email; and
+uploader-only deletes for documents. Extend it when adding a resource.
 
 ## Architecture
 

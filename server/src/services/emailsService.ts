@@ -114,13 +114,16 @@ export const provisionAccountFromEnv = async (): Promise<void> => {
 }
 
 export const listEmailAccounts = async (
-  _currentUserId: string,
+  currentUserId: string,
   _currentUserRole: UserRole
 ) => {
   // Make sure the SMTP-configured account exists before listing.
   await provisionAccountFromEnv()
 
   const accounts = await prisma.emailAccount.findMany({
+    // The mailbox provisioned from SMTP env has no owner and belongs to the
+    // workspace; everything a user connects themselves is private to them.
+    where: { OR: [{ userId: null }, { userId: currentUserId }] },
     select: {
       id: true,
       address: true,
@@ -148,7 +151,7 @@ export const createEmailAccountSchema = z.object({
  *  `credentials` Json field so the client only ever sees safe metadata. */
 export const createEmailAccount = async (
   input: unknown,
-  _currentUserId: string,
+  currentUserId: string,
   _currentUserRole: UserRole
 ) => {
   const data = createEmailAccountSchema.parse(input)
@@ -159,6 +162,7 @@ export const createEmailAccount = async (
 
   const account = await prisma.emailAccount.create({
     data: {
+      userId: currentUserId,
       address,
       provider: data.provider,
       displayName: data.displayName,
@@ -214,10 +218,12 @@ export const syncEmailAccount = async (
 // ---------------------------------------------------------------- messages
 
 export const listEmails = async (
-  _currentUserId: string,
+  currentUserId: string,
   _currentUserRole: UserRole
 ) => {
+  // Mail is private to its sender, admins included.
   return prisma.emailMessage.findMany({
+    where: { userId: currentUserId },
     orderBy: { createdAt: "desc" },
     include: {
       contact: { select: { id: true, name: true } },
@@ -229,11 +235,11 @@ export const listEmails = async (
 
 export const listEmailsByContact = async (
   contactId: string,
-  _currentUserId: string,
+  currentUserId: string,
   _currentUserRole: UserRole
 ) => {
   return prisma.emailMessage.findMany({
-    where: { contactId },
+    where: { contactId, userId: currentUserId },
     orderBy: { createdAt: "desc" },
   })
 }
@@ -347,6 +353,7 @@ export const sendEmail = async (
 
   const email = await prisma.emailMessage.create({
     data: {
+      userId: currentUserId,
       accountId: data.accountId,
       contactId: data.contactId,
       leadId: data.leadId,
@@ -386,13 +393,14 @@ export const sendEmail = async (
 
 export const saveDraft = async (
   input: unknown,
-  _currentUserId: string,
+  currentUserId: string,
   _currentUserRole: UserRole
 ) => {
   const data = sendEmailSchema.parse(input)
 
   const email = await prisma.emailMessage.create({
     data: {
+      userId: currentUserId,
       accountId: data.accountId,
       contactId: data.contactId,
       leadId: data.leadId,
@@ -411,10 +419,14 @@ export const saveDraft = async (
 
 export const deleteDraft = async (
   id: string,
-  _currentUserId: string,
+  currentUserId: string,
   _currentUserRole: UserRole
 ) => {
   const existing = await prisma.emailMessage.findUnique({ where: { id } })
   if (!existing) throw ApiError.notFound("Draft not found")
+  // Deleting is scoped the same way reading is: your mail is yours alone.
+  if (existing.userId !== currentUserId) {
+    throw ApiError.forbidden("You do not have access to this message")
+  }
   await prisma.emailMessage.delete({ where: { id } })
 }

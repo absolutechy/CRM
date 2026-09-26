@@ -10,6 +10,7 @@ import { randomUUID } from "node:crypto"
 
 import { env, hasStorageConfig } from "@/config/env"
 import { prisma } from "@/lib/prisma"
+import { canAccessAllRecords } from "@/lib/ownership"
 import { ApiError } from "@/lib/http"
 import type { UserRole } from "@prisma/client"
 
@@ -289,11 +290,20 @@ export const getDownloadUrl = async (
 
 export const deleteDocument = async (
   id: string,
-  _currentUserId: string,
-  _currentUserRole: UserRole
+  currentUserId: string,
+  currentUserRole: UserRole
 ) => {
   const doc = await prisma.document.findUnique({ where: { id } })
   if (!doc) throw ApiError.notFound("Document not found")
+
+  // Deleting destroys the stored object too, so restrict it to whoever
+  // uploaded the file — or an admin/manager cleaning up.
+  if (
+    !canAccessAllRecords({ id: currentUserId, role: currentUserRole }) &&
+    doc.uploadedById !== currentUserId
+  ) {
+    throw ApiError.forbidden("You can only delete documents you uploaded")
+  }
 
   // Remove the stored object (if any) and the metadata row.
   if (doc.storageKey && hasStorageConfig) {

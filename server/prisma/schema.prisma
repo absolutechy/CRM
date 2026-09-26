@@ -37,6 +37,8 @@ model User {
   assignedTasks  Task[]         @relation("TaskAssignee")
   uploads        Document[]     @relation("DocumentUploader")
   activities     Activity[]     @relation("ActivityActor")
+  emailAccounts  EmailAccount[] @relation("EmailAccountOwner")
+  emailMessages  EmailMessage[] @relation("EmailMessageOwner")
   refreshTokens  RefreshToken[]
   notifications  Notification[]
 
@@ -410,6 +412,10 @@ enum EmailStatus {
 model EmailAccount {
   id           String        @id @default(cuid())
   address      String        @unique
+
+  /// The mailbox belongs to whoever connected it; nobody else may see it.
+  userId String?
+  user   User?   @relation("EmailAccountOwner", fields: [userId], references: [id], onDelete: Cascade)
   provider     EmailProvider
   displayName  String
   connected    Boolean       @default(false)
@@ -441,6 +447,11 @@ model EmailTemplate {
 
 model EmailMessage {
   id        String        @id @default(cuid())
+
+  /// Sender/owner of the message. Messages are private to this user.
+  userId String?
+  user   User?   @relation("EmailMessageOwner", fields: [userId], references: [id], onDelete: Cascade)
+
   accountId String?
   account   EmailAccount? @relation(fields: [accountId], references: [id], onDelete: SetNull)
 
@@ -469,6 +480,7 @@ model EmailMessage {
   @@index([contactId])
   @@index([leadId])
   @@index([status])
+  @@index([userId])
   @@map("email_messages")
 }
 
