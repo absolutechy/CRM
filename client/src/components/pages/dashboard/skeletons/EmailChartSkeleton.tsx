@@ -1,3 +1,4 @@
+import { Skeleton } from "@/components/ui/skeleton"
 import React from "react"
 
 const EmailChartSkeleton: React.FC = () => {
@@ -5,28 +6,28 @@ const EmailChartSkeleton: React.FC = () => {
     <div className="rounded-lg border border-border bg-surface p-2">
       {/* Header skeleton */}
       <div className="mb-2 flex items-center justify-between gap-2">
-        <div className="h-5 w-40 animate-pulse rounded bg-muted" />
+        <Skeleton className="h-5 w-40 rounded" />
         <div className="flex items-center gap-2">
-          <div className="h-7 w-40 animate-pulse rounded bg-muted" />
-          <div className="h-7 w-24 animate-pulse rounded bg-muted" />
+          <Skeleton className="h-7 w-40 rounded" />
+          <Skeleton className="h-7 w-24 rounded" />
         </div>
       </div>
 
       {/* Stats skeleton */}
       <div className="mb-2">
         <div className="flex items-baseline gap-1">
-          <div className="h-8 w-24 animate-pulse rounded bg-muted" />
-          <div className="h-4 w-12 animate-pulse rounded bg-muted" />
+          <Skeleton className="h-8 w-24 rounded" />
+          <Skeleton className="h-4 w-12 rounded" />
         </div>
-        <div className="mt-1 h-4 w-32 animate-pulse rounded bg-muted" />
+        <Skeleton className="mt-1 h-4 w-32 rounded" />
       </div>
 
       {/* Chart skeleton */}
-      <div className="w-full animate-pulse rounded bg-muted" style={{ height: "375px" }} />
+      <Skeleton className="w-full" style={{ height: "375px" }} />
 
       {/* Footer skeleton */}
       <div className="mt-1 border-t border-border pt-1">
-        <div className="h-4 w-44 animate-pulse rounded bg-muted" />
+        <Skeleton className="h-4 w-44 rounded" />
       </div>
     </div>
   )

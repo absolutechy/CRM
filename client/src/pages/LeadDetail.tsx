@@ -25,6 +25,7 @@ import { Avatar, AvatarFallback } from "@/components/ui/avatar"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
+import { DetailSkeleton } from "@/components/common/skeletons"
 import {
   LEAD_SOURCE_LABEL,
   LEAD_STATUS_BADGE,
@@ -57,7 +58,9 @@ const LeadDetail = () => {
 
   const lead = useAppSelector((s: RootState) => selectLeadById(s, id))
   const status = useAppSelector(selectLeadsStatus)
-  const timeline = useAppSelector((s: RootState) => selectTimelineForLead(s, id))
+  const timeline = useAppSelector((s: RootState) =>
+    selectTimelineForLead(s, id)
+  )
   const ownerName = useAppSelector((s: RootState) =>
     selectUserNameById(s, lead?.ownerId)
   )
@@ -81,12 +84,8 @@ const LeadDetail = () => {
     }
   }, [dispatch, id])
 
-  if (status === "loading" && !lead) {
-    return (
-      <MainContentWrapper className="px-8 py-16 text-center text-sm text-muted-foreground">
-        Loading lead…
-      </MainContentWrapper>
-    )
+  if (!lead && status !== "failed") {
+    return <DetailSkeleton />
   }
 
   if (!lead) {
@@ -173,7 +172,11 @@ const LeadDetail = () => {
           </div>
 
           <div className="flex items-center gap-2">
-            <Button variant="outline" size="sm" onClick={() => setEditOpen(true)}>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setEditOpen(true)}
+            >
               <Pencil />
               Edit
             </Button>
@@ -245,7 +248,9 @@ const LeadDetail = () => {
                         {lead.phone}
                       </a>
                     ) : (
-                      <span className="text-muted-foreground">Not provided</span>
+                      <span className="text-muted-foreground">
+                        Not provided
+                      </span>
                     )}
                   </div>
                   <div className="flex items-center gap-3">

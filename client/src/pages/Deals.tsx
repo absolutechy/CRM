@@ -169,7 +169,7 @@ const Deals = () => {
         accessorKey: "amount",
         header: "Value",
         cell: ({ row }) => (
-          <span className="font-medium tabular-nums text-foreground">
+          <span className="font-medium text-foreground tabular-nums">
             {formatCurrency(row.original.amount, row.original.currency)}
           </span>
         ),
@@ -187,7 +187,7 @@ const Deals = () => {
         accessorKey: "probability",
         header: "Win %",
         cell: ({ row }) => (
-          <span className="tabular-nums text-muted-foreground">
+          <span className="text-muted-foreground tabular-nums">
             {row.original.probability}%
           </span>
         ),
@@ -220,7 +220,10 @@ const Deals = () => {
         enableSorting: false,
         header: "",
         cell: ({ row }) => (
-          <div className="flex justify-end" onClick={(e) => e.stopPropagation()}>
+          <div
+            className="flex justify-end"
+            onClick={(e) => e.stopPropagation()}
+          >
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
                 <Button
@@ -312,12 +315,6 @@ const Deals = () => {
         </div>
 
         {/* View toggle */}
-        {status === "loading" && deals.length === 0 ? (
-          <div className="rounded-lg border border-border bg-surface p-8 text-center text-sm text-muted-foreground">
-            Loading deales…
-          </div>
-        ) : (
-          <>
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div className="flex w-fit items-center gap-1 rounded-md border border-border bg-surface p-1">
             {(["pipeline", "list"] as const).map((v) => (
@@ -360,6 +357,7 @@ const Deals = () => {
           <DataTable
             columns={columns}
             data={visible}
+            isLoading={status === "loading" && deals.length === 0}
             searchPlaceholder="Search deals, accounts, contacts..."
             onRowClick={openEdit}
             emptyMessage="No deals match these filters."
@@ -432,7 +430,7 @@ const Deals = () => {
                       <Badge variant="muted">{items.length}</Badge>
                     </div>
                     {total > 0 && (
-                      <span className="text-xs tabular-nums text-muted-foreground">
+                      <span className="text-xs text-muted-foreground tabular-nums">
                         {formatCurrency(total)}
                       </span>
                     )}
@@ -463,7 +461,7 @@ const Deals = () => {
                               : "No account"}
                           </p>
                           <div className="mt-2 flex items-center justify-between gap-2">
-                            <span className="text-sm font-semibold tabular-nums text-foreground">
+                            <span className="text-sm font-semibold text-foreground tabular-nums">
                               {formatCurrency(deal.amount, deal.currency)}
                             </span>
                             <span className="text-[11px] text-muted-foreground">
@@ -481,8 +479,6 @@ const Deals = () => {
               )
             })}
           </div>
-        )}
-        </>
         )}
       </MainContentWrapper>
 

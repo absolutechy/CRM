@@ -1,11 +1,5 @@
 import { useEffect, useState } from "react"
-import {
-  ArrowLeft,
-  Merge,
-  Pencil,
-  Trash2,
-  TriangleAlert,
-} from "lucide-react"
+import { ArrowLeft, Merge, Pencil, Trash2, TriangleAlert } from "lucide-react"
 import { Link, useNavigate, useParams } from "react-router"
 
 import MainContentWrapper from "@/components/common/MainContentWrapper"
@@ -19,6 +13,7 @@ import { Avatar, AvatarFallback } from "@/components/ui/avatar"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
+import { DetailSkeleton } from "@/components/common/skeletons"
 import { CONTACT_STATUS_BADGE, getInitials } from "@/lib/crm"
 import { useAppDispatch, useAppSelector } from "@/store/hooks"
 import {
@@ -62,12 +57,8 @@ const ContactDetail = () => {
     }
   }, [dispatch, id])
 
-  if (status === "loading" && !contact) {
-    return (
-      <MainContentWrapper className="px-8 py-16 text-center text-sm text-muted-foreground">
-        Loading contact…
-      </MainContentWrapper>
-    )
+  if (!contact && status !== "failed") {
+    return <DetailSkeleton />
   }
 
   if (!contact) {
@@ -153,7 +144,11 @@ const ContactDetail = () => {
           </div>
 
           <div className="flex items-center gap-2">
-            <Button variant="outline" size="sm" onClick={() => setEditOpen(true)}>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setEditOpen(true)}
+            >
               <Pencil />
               Edit
             </Button>
@@ -176,7 +171,8 @@ const ContactDetail = () => {
             <TriangleAlert className="mt-0.5 size-4 shrink-0 text-warning-strong" />
             <div className="min-w-0 flex-1 text-sm">
               <p className="font-medium text-warning-strong">
-                Possible duplicate {duplicates.length === 1 ? "record" : "records"}
+                Possible duplicate{" "}
+                {duplicates.length === 1 ? "record" : "records"}
               </p>
               <p className="text-muted-foreground">
                 {duplicates.map((d, i) => (

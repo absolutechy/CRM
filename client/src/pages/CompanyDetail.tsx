@@ -1,5 +1,13 @@
 import { useEffect, useMemo } from "react"
-import { ArrowLeft, Building2, FolderOpen, Globe, MapPin, Users, Wallet } from "lucide-react"
+import {
+  ArrowLeft,
+  Building2,
+  FolderOpen,
+  Globe,
+  MapPin,
+  Users,
+  Wallet,
+} from "lucide-react"
 import { Link, useNavigate, useParams } from "react-router"
 
 import MainContentWrapper from "@/components/common/MainContentWrapper"
@@ -10,6 +18,7 @@ import { createContactColumns } from "@/components/pages/contacts/columns"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
+import { DetailSkeleton } from "@/components/common/skeletons"
 import { COMPANY_STATUS_BADGE, formatCurrency } from "@/lib/crm"
 import { useAppDispatch, useAppSelector } from "@/store/hooks"
 import {
@@ -55,12 +64,8 @@ const CompanyDetail = () => {
 
   const totalValue = orders.reduce((sum, o) => sum + o.amount, 0)
 
-  if (status === "loading" && !company) {
-    return (
-      <MainContentWrapper className="px-8 py-16 text-center text-sm text-muted-foreground">
-        Loading company…
-      </MainContentWrapper>
-    )
+  if (!company && status !== "failed") {
+    return <DetailSkeleton />
   }
 
   if (!company) {
@@ -158,9 +163,8 @@ const CompanyDetail = () => {
                 icon={FolderOpen}
                 title="Open orders"
                 value={String(
-                  orders.filter(
-                    (o) => o.stage !== "Won" && o.stage !== "Lost"
-                  ).length
+                  orders.filter((o) => o.stage !== "Won" && o.stage !== "Lost")
+                    .length
                 )}
                 subtitle="Not yet closed"
                 tone="info"

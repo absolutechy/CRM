@@ -1,0 +1,5 @@
+export { default as TableSkeleton } from "./TableSkeleton"
+export { default as DetailSkeleton } from "./DetailSkeleton"
+export { default as PageSkeleton } from "./PageSkeleton"
+export { default as KanbanSkeleton } from "./KanbanSkeleton"
+export { default as CardGridSkeleton } from "./CardGridSkeleton"

@@ -48,7 +48,10 @@ const Activities = () => {
   const visible = useMemo(
     () =>
       rows.filter(({ activity }) => {
-        if (statusFilter === "interactions" && !isInteractionType(activity.type))
+        if (
+          statusFilter === "interactions" &&
+          !isInteractionType(activity.type)
+        )
           return false
         if (statusFilter === "planned" && activity.status !== "planned")
           return false
@@ -64,12 +67,8 @@ const Activities = () => {
     <>
       <PageHeader />
       <MainContentWrapper className="space-y-6 px-8">
-        {status === "loading" && rows.length === 0 ? (
-          <div className="rounded-lg border border-border bg-surface p-8 text-center text-sm text-muted-foreground">
-            Loading activity…
-          </div>
-        ) : (
         <DataTable
+          isLoading={status === "loading" && rows.length === 0}
           columns={interactionColumns}
           data={visible}
           searchPlaceholder="Search interactions, contacts, companies..."
@@ -104,7 +103,10 @@ const Activities = () => {
               </Select>
 
               <Select value={actorFilter} onValueChange={setActorFilter}>
-                <SelectTrigger className="w-40" aria-label="Filter by team member">
+                <SelectTrigger
+                  className="w-40"
+                  aria-label="Filter by team member"
+                >
                   <SelectValue placeholder="Team member" />
                 </SelectTrigger>
                 <SelectContent>
@@ -119,7 +121,6 @@ const Activities = () => {
             </div>
           }
         />
-        )}
       </MainContentWrapper>
     </>
   )

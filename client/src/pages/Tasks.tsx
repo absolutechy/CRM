@@ -6,6 +6,7 @@ import TaskForm from "@/components/pages/tasks/TaskForm"
 import { Modal } from "@/components/ui/modal"
 import { Input } from "@/components/ui/input"
 import ConfirmDeleteModal from "@/components/pages/contacts/ConfirmDeleteModal"
+import { KanbanSkeleton } from "@/components/common/skeletons"
 import { useAppDispatch, useAppSelector } from "@/store/hooks"
 import {
   changeTaskStatus,
@@ -117,7 +118,7 @@ const Tasks = () => {
   }
 
   return (
-    <div className="h-full flex flex-col space-y-2 max-w-full">
+    <div className="flex h-full max-w-full flex-col space-y-2">
       <TaskHeader
         currentView={view}
         onViewChange={handleViewChange}
@@ -127,11 +128,9 @@ const Tasks = () => {
       <div className="flex-1 overflow-x-auto p-8">
         {status === "loading" &&
         Object.values(columns).every((arr) => arr.length === 0) ? (
-          <div className="flex h-full items-center justify-center rounded-lg border border-border bg-surface text-sm text-muted-foreground">
-            Loading tasks…
-          </div>
+          <KanbanSkeleton columns={TASK_STATUSES.length} />
         ) : view === "kanban" ? (
-          <div className="flex gap-6 h-full items-start">
+          <div className="flex h-full items-start gap-6">
             {TASK_STATUSES.map((taskStatus) => (
               <Column
                 key={taskStatus}
@@ -154,7 +153,7 @@ const Tasks = () => {
             ))}
           </div>
         ) : (
-          <div className="flex flex-col items-center justify-center h-[400px] border rounded-lg bg-muted/10 text-muted-foreground border-dashed">
+          <div className="flex h-[400px] flex-col items-center justify-center rounded-lg border border-dashed bg-muted/10 text-muted-foreground">
             <p>The {view} view is currently under construction.</p>
           </div>
         )}
@@ -168,7 +167,7 @@ const Tasks = () => {
             value={taskTitle}
             onChange={(e) => setTaskTitle(e.target.value)}
             placeholder="Task Title (e.g. Monthly Product Discussion)"
-            className="text-xl font-semibold border-none shadow-none focus-visible:ring-0 px-0 rounded-none w-full text-left placeholder:font-normal placeholder:text-muted-foreground"
+            className="w-full rounded-none border-none px-0 text-left text-xl font-semibold shadow-none placeholder:font-normal placeholder:text-muted-foreground focus-visible:ring-0"
           />
         }
       >

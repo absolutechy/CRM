@@ -109,8 +109,19 @@ const companiesSlice = createSlice({
       })
 
       // fetchCompany
+      // The detail page reads `status` to decide whether to show its skeleton,
+      // so the single-entity fetch has to drive it too — not just the list.
+      .addCase(fetchCompany.pending, (state) => {
+        state.status = "loading"
+        state.error = null
+      })
       .addCase(fetchCompany.fulfilled, (state, action) => {
+        state.status = "succeeded"
         companiesAdapter.upsertOne(state, action.payload)
+      })
+      .addCase(fetchCompany.rejected, (state, action) => {
+        state.status = "failed"
+        state.error = action.error.message ?? "Failed to load company"
       })
 
       // createCompany
@@ -157,7 +168,8 @@ export const {
   selectEntities: selectCompanyEntities,
 } = companiesAdapter.getSelectors<RootState>((state) => state.companies)
 
-export const selectCompaniesStatus = (state: RootState) => state.companies.status
+export const selectCompaniesStatus = (state: RootState) =>
+  state.companies.status
 export const selectCompaniesError = (state: RootState) => state.companies.error
 
 /** Convenience for table cells that only need a display name from an FK. */

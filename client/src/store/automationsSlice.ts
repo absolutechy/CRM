@@ -148,8 +148,19 @@ const automationsSlice = createSlice({
       })
 
       // fetchRule
+      // The detail page reads `status` to decide whether to show its skeleton,
+      // so the single-entity fetch has to drive it too — not just the list.
+      .addCase(fetchRule.pending, (state) => {
+        state.status = "loading"
+        state.error = null
+      })
       .addCase(fetchRule.fulfilled, (state, action) => {
+        state.status = "succeeded"
         automationsAdapter.upsertOne(state, action.payload)
+      })
+      .addCase(fetchRule.rejected, (state, action) => {
+        state.status = "failed"
+        state.error = action.error.message ?? "Failed to load rule"
       })
 
       // createAutomationRule
@@ -199,10 +210,8 @@ export default automationsSlice.reducer
 
 // ---------------------------------------------------------------- selectors
 
-export const {
-  selectAll: selectAllRules,
-  selectById: selectRuleById,
-} = automationsAdapter.getSelectors<RootState>((state) => state.automations)
+export const { selectAll: selectAllRules, selectById: selectRuleById } =
+  automationsAdapter.getSelectors<RootState>((state) => state.automations)
 
 export const selectRulesStatus = (state: RootState) => state.automations.status
 export const selectRulesError = (state: RootState) => state.automations.error

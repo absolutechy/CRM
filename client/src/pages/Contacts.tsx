@@ -59,13 +59,16 @@ const Contacts = () => {
     dispatch(
       fetchContacts({
         ...(companyFilter !== "all" && { companyId: companyFilter }),
-        ...(statusFilter !== "all" && { status: statusFilter as ContactStatus }),
+        ...(statusFilter !== "all" && {
+          status: statusFilter as ContactStatus,
+        }),
       })
     )
   }, [dispatch, companyFilter, statusFilter])
 
   const companyName = useMemo(
-    () => (id: string | null) => (id ? (companyEntities[id]?.name ?? "—") : "—"),
+    () => (id: string | null) =>
+      id ? (companyEntities[id]?.name ?? "—") : "—",
     [companyEntities]
   )
 
@@ -113,60 +116,55 @@ const Contacts = () => {
     <>
       <PageHeader />
       <MainContentWrapper className="space-y-6 px-8">
-        {status === "loading" && contacts.length === 0 ? (
-          <div className="rounded-lg border border-border bg-surface p-8 text-center text-sm text-muted-foreground">
-            Loading contacts…
-          </div>
-        ) : (
-          <DataTable
-            columns={columns}
-            data={visibleContacts}
-            searchPlaceholder="Search name, company, email..."
-            onRowClick={(contact) => navigate(`/contacts/${contact.id}`)}
-            emptyMessage="No contacts match your filters."
-            toolbar={
-              <div className="flex items-center gap-2">
-                <Select value={companyFilter} onValueChange={setCompanyFilter}>
-                  <SelectTrigger className="w-40" aria-label="Filter by company">
-                    <SelectValue placeholder="Company" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="all">All companies</SelectItem>
-                    {companies.map((c) => (
-                      <SelectItem key={c.id} value={c.id}>
-                        {c.name}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+        <DataTable
+          isLoading={status === "loading" && contacts.length === 0}
+          columns={columns}
+          data={visibleContacts}
+          searchPlaceholder="Search name, company, email..."
+          onRowClick={(contact) => navigate(`/contacts/${contact.id}`)}
+          emptyMessage="No contacts match your filters."
+          toolbar={
+            <div className="flex items-center gap-2">
+              <Select value={companyFilter} onValueChange={setCompanyFilter}>
+                <SelectTrigger className="w-40" aria-label="Filter by company">
+                  <SelectValue placeholder="Company" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All companies</SelectItem>
+                  {companies.map((c) => (
+                    <SelectItem key={c.id} value={c.id}>
+                      {c.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
 
-                <Select value={statusFilter} onValueChange={setStatusFilter}>
-                  <SelectTrigger className="w-36" aria-label="Filter by status">
-                    <SelectValue placeholder="Status" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="all">All statuses</SelectItem>
-                    <SelectItem value="Active">Active</SelectItem>
-                    <SelectItem value="Inactive">Inactive</SelectItem>
-                    <SelectItem value="Pending">Pending</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-            }
-            actions={
-              <Button
-                size="sm"
-                onClick={() => {
-                  setEditing(null)
-                  setFormOpen(true)
-                }}
-              >
-                <Plus />
-                New contact
-              </Button>
-            }
-          />
-        )}
+              <Select value={statusFilter} onValueChange={setStatusFilter}>
+                <SelectTrigger className="w-36" aria-label="Filter by status">
+                  <SelectValue placeholder="Status" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All statuses</SelectItem>
+                  <SelectItem value="Active">Active</SelectItem>
+                  <SelectItem value="Inactive">Inactive</SelectItem>
+                  <SelectItem value="Pending">Pending</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+          }
+          actions={
+            <Button
+              size="sm"
+              onClick={() => {
+                setEditing(null)
+                setFormOpen(true)
+              }}
+            >
+              <Plus />
+              New contact
+            </Button>
+          }
+        />
       </MainContentWrapper>
 
       <ContactFormModal

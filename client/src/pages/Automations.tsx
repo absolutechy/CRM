@@ -8,7 +8,12 @@ import ConfirmDeleteModal from "@/components/pages/contacts/ConfirmDeleteModal"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Switch } from "@/components/ui/switch"
-import { actionMeta, TRIGGER_ENTITIES, TRIGGER_EVENTS } from "@/lib/automationSchema"
+import { CardGridSkeleton } from "@/components/common/skeletons"
+import {
+  actionMeta,
+  TRIGGER_ENTITIES,
+  TRIGGER_EVENTS,
+} from "@/lib/automationSchema"
 import { formatDate } from "@/lib/crm"
 import { useAppDispatch, useAppSelector } from "@/store/hooks"
 import {
@@ -25,7 +30,9 @@ const triggerSummary = (rule: AutomationRule) => {
   const entity = TRIGGER_ENTITIES.find(
     (e) => e.value === rule.trigger.entity
   )?.label
-  const event = TRIGGER_EVENTS.find((e) => e.value === rule.trigger.event)?.label
+  const event = TRIGGER_EVENTS.find(
+    (e) => e.value === rule.trigger.event
+  )?.label
   return `When a ${entity?.toLowerCase()} ${event}`
 }
 
@@ -34,7 +41,9 @@ const Automations = () => {
   const navigate = useNavigate()
   const rules = useAppSelector(selectAllRules)
   const status = useAppSelector(selectRulesStatus)
-  const [pendingDelete, setPendingDelete] = useState<AutomationRule | null>(null)
+  const [pendingDelete, setPendingDelete] = useState<AutomationRule | null>(
+    null
+  )
   const [isDeleting, setIsDeleting] = useState(false)
 
   useEffect(() => {
@@ -89,9 +98,7 @@ const Automations = () => {
         </div>
 
         {status === "loading" && rules.length === 0 ? (
-          <div className="flex flex-col items-center gap-2 rounded-lg border border-border bg-surface py-16 text-center">
-            <p className="text-sm text-muted-foreground">Loading rules…</p>
-          </div>
+          <CardGridSkeleton />
         ) : rules.length === 0 ? (
           <div className="flex flex-col items-center gap-2 rounded-lg border border-border bg-surface py-16 text-center">
             <span className="flex size-10 items-center justify-center rounded-full bg-muted">

@@ -69,7 +69,9 @@ const Campaigns = () => {
   useEffect(() => {
     dispatch(
       fetchCampaigns({
-        ...(statusFilter !== "all" && { status: statusFilter as CampaignStatus }),
+        ...(statusFilter !== "all" && {
+          status: statusFilter as CampaignStatus,
+        }),
         ...(typeFilter !== "all" && { type: typeFilter as CampaignType }),
       })
     )
@@ -114,7 +116,9 @@ const Campaigns = () => {
         id: "type",
         accessorFn: (c) => CAMPAIGN_TYPE_LABEL[c.type],
         header: "Type",
-        cell: ({ getValue }) => <Badge variant="muted">{getValue<string>()}</Badge>,
+        cell: ({ getValue }) => (
+          <Badge variant="muted">{getValue<string>()}</Badge>
+        ),
       },
       {
         accessorKey: "status",
@@ -133,7 +137,7 @@ const Campaigns = () => {
         accessorFn: (c) => memberCounts[c.id] ?? 0,
         header: "Audience",
         cell: ({ getValue }) => (
-          <span className="tabular-nums text-foreground">
+          <span className="text-foreground tabular-nums">
             {getValue<number>()}
           </span>
         ),
@@ -162,7 +166,7 @@ const Campaigns = () => {
         accessorFn: (c) => c.budget ?? 0,
         header: "Budget",
         cell: ({ row }) => (
-          <span className="tabular-nums text-muted-foreground">
+          <span className="text-muted-foreground tabular-nums">
             {row.original.budget ? formatCurrency(row.original.budget) : "—"}
           </span>
         ),
@@ -173,7 +177,10 @@ const Campaigns = () => {
         enableSorting: false,
         header: "",
         cell: ({ row }) => (
-          <div className="flex justify-end" onClick={(e) => e.stopPropagation()}>
+          <div
+            className="flex justify-end"
+            onClick={(e) => e.stopPropagation()}
+          >
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
                 <Button
@@ -221,12 +228,8 @@ const Campaigns = () => {
     <>
       <PageHeader />
       <MainContentWrapper className="space-y-6 px-8">
-        {status === "loading" && campaigns.length === 0 ? (
-          <div className="rounded-lg border border-border bg-surface p-8 text-center text-sm text-muted-foreground">
-            Loading campaigns…
-          </div>
-        ) : (
         <DataTable
+          isLoading={status === "loading" && campaigns.length === 0}
           columns={columns}
           data={visible}
           searchPlaceholder="Search campaigns..."
@@ -275,7 +278,6 @@ const Campaigns = () => {
             </Button>
           }
         />
-        )}
       </MainContentWrapper>
 
       <CampaignFormModal

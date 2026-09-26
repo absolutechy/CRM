@@ -138,8 +138,19 @@ const leadsSlice = createSlice({
       })
 
       // fetchLead
+      // The detail page reads `status` to decide whether to show its skeleton,
+      // so the single-entity fetch has to drive it too — not just the list.
+      .addCase(fetchLead.pending, (state) => {
+        state.status = "loading"
+        state.error = null
+      })
       .addCase(fetchLead.fulfilled, (state, action) => {
+        state.status = "succeeded"
         leadsAdapter.upsertOne(state, action.payload)
+      })
+      .addCase(fetchLead.rejected, (state, action) => {
+        state.status = "failed"
+        state.error = action.error.message ?? "Failed to load lead"
       })
 
       // createLead
@@ -222,8 +233,10 @@ export const selectLeadsByCampaign = createSelector(
 )
 
 /** Open pipeline value — excludes converted and unqualified leads. */
-export const selectLeadPipelineValue = createSelector([selectAllLeads], (leads) =>
-  leads
-    .filter((l) => l.status !== "converted" && l.status !== "unqualified")
-    .reduce((sum, l) => sum + (l.estimatedValue ?? 0), 0)
+export const selectLeadPipelineValue = createSelector(
+  [selectAllLeads],
+  (leads) =>
+    leads
+      .filter((l) => l.status !== "converted" && l.status !== "unqualified")
+      .reduce((sum, l) => sum + (l.estimatedValue ?? 0), 0)
 )

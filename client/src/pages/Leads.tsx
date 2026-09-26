@@ -37,7 +37,6 @@ import { selectAllUsers, selectUserEntities } from "@/store/usersSlice"
 import { useConvertLead } from "@/components/pages/leads/useConvertLead"
 import type { Lead, LeadStatus } from "@/types/crm"
 import { LEAD_SOURCES, LEAD_STATUSES } from "@/types/crm"
-import { Spinner } from "@/components/ui/spinner"
 
 type View = "list" | "pipeline"
 
@@ -70,7 +69,9 @@ const Leads = () => {
     dispatch(
       fetchLeads({
         ...(statusFilter !== "all" && { status: statusFilter as LeadStatus }),
-        ...(sourceFilter !== "all" && { source: sourceFilter as Lead["source"] }),
+        ...(sourceFilter !== "all" && {
+          source: sourceFilter as Lead["source"],
+        }),
         ...(ownerFilter !== "all" && {
           ownerId: ownerFilter === "unassigned" ? null : ownerFilter,
         }),
@@ -179,7 +180,7 @@ const Leads = () => {
         </div>
 
         {/* View toggle */}
-        <div className="flex items-center gap-1 rounded-md border border-border bg-surface p-1 w-fit">
+        <div className="flex w-fit items-center gap-1 rounded-md border border-border bg-surface p-1">
           {(["list", "pipeline"] as const).map((v) => (
             <button
               key={v}
@@ -202,12 +203,11 @@ const Leads = () => {
           ))}
         </div>
 
-        {status === "loading" && leads.length === 0 ? (
-          <Spinner className="size-10" />
-        ) : view === "list" ? (
+        {view === "list" ? (
           <DataTable
             columns={columns}
             data={visible}
+            isLoading={status === "loading" && leads.length === 0}
             searchPlaceholder="Search leads, companies, emails..."
             onRowClick={(lead) => navigate(`/leads/${lead.id}`)}
             emptyMessage="No leads match these filters."

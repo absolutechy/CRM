@@ -109,8 +109,19 @@ const contactsSlice = createSlice({
       })
 
       // fetchContact
+      // The detail page reads `status` to decide whether to show its skeleton,
+      // so the single-entity fetch has to drive it too — not just the list.
+      .addCase(fetchContact.pending, (state) => {
+        state.status = "loading"
+        state.error = null
+      })
       .addCase(fetchContact.fulfilled, (state, action) => {
+        state.status = "succeeded"
         contactsAdapter.upsertOne(state, action.payload)
+      })
+      .addCase(fetchContact.rejected, (state, action) => {
+        state.status = "failed"
+        state.error = action.error.message ?? "Failed to load contact"
       })
 
       // createContact

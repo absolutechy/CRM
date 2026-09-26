@@ -8,7 +8,19 @@ import {
   XAxis,
   YAxis,
 } from "recharts"
-import { ArrowLeft, CalendarRange, CheckCircle2, MailOpen, Megaphone, MousePointerClick, Plus, UserCircle, UserMinus, Users, Wallet } from "lucide-react"
+import {
+  ArrowLeft,
+  CalendarRange,
+  CheckCircle2,
+  MailOpen,
+  Megaphone,
+  MousePointerClick,
+  Plus,
+  UserCircle,
+  UserMinus,
+  Users,
+  Wallet,
+} from "lucide-react"
 import { Link, useParams } from "react-router"
 
 import MainContentWrapper from "@/components/common/MainContentWrapper"
@@ -25,6 +37,7 @@ import {
   SelectValue,
 } from "@/components/ui/select"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
+import { DetailSkeleton } from "@/components/common/skeletons"
 import {
   CAMPAIGN_RESPONSE_BADGE,
   CAMPAIGN_STATUS_BADGE,
@@ -82,12 +95,8 @@ const CampaignDetail = () => {
     }
   }, [dispatch, id])
 
-  if (status === "loading" && !campaign) {
-    return (
-      <MainContentWrapper className="px-8 py-16 text-center text-sm text-muted-foreground">
-        Loading campaign…
-      </MainContentWrapper>
-    )
+  if (!campaign && status !== "failed") {
+    return <DetailSkeleton />
   }
 
   if (!campaign) {
@@ -141,7 +150,9 @@ const CampaignDetail = () => {
               >
                 {campaign.status}
               </Badge>
-              <Badge variant="muted">{CAMPAIGN_TYPE_LABEL[campaign.type]}</Badge>
+              <Badge variant="muted">
+                {CAMPAIGN_TYPE_LABEL[campaign.type]}
+              </Badge>
             </div>
             <p className="text-sm text-muted-foreground">
               {campaign.goal || "No goal set"}
@@ -268,7 +279,11 @@ const CampaignDetail = () => {
                           </SelectTrigger>
                           <SelectContent>
                             {CAMPAIGN_RESPONSES.map((r) => (
-                              <SelectItem key={r} value={r} className="capitalize">
+                              <SelectItem
+                                key={r}
+                                value={r}
+                                className="capitalize"
+                              >
                                 {r}
                               </SelectItem>
                             ))}
@@ -383,9 +398,7 @@ const CampaignDetail = () => {
         onSave={async (draft: CampaignDraft) => {
           setIsSaving(true)
           try {
-            await dispatch(
-              updateCampaign({ id: campaign.id, changes: draft })
-            )
+            await dispatch(updateCampaign({ id: campaign.id, changes: draft }))
           } finally {
             setIsSaving(false)
             setEditOpen(false)
@@ -396,8 +409,12 @@ const CampaignDetail = () => {
       <AudienceSelector
         isOpen={audienceOpen}
         onClose={() => setAudienceOpen(false)}
-        existingContactIds={members.map((m) => m.contactId).filter(Boolean) as string[]}
-        existingLeadIds={members.map((m) => m.leadId).filter(Boolean) as string[]}
+        existingContactIds={
+          members.map((m) => m.contactId).filter(Boolean) as string[]
+        }
+        existingLeadIds={
+          members.map((m) => m.leadId).filter(Boolean) as string[]
+        }
         onAdd={({ contactIds, leadIds }) => {
           dispatch(
             addCampaignMembers({

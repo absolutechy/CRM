@@ -7,6 +7,7 @@ import RuleBuilder from "@/components/pages/automations/RuleBuilder"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Switch } from "@/components/ui/switch"
+import { DetailSkeleton } from "@/components/common/skeletons"
 import { useAppDispatch, useAppSelector } from "@/store/hooks"
 import {
   fetchRule,
@@ -39,12 +40,14 @@ const AutomationDetail = () => {
     setDraft(rest)
   }, [rule])
 
-  if (status === "loading" && !rule) {
-    return (
-      <MainContentWrapper className="px-8 py-16 text-center text-sm text-muted-foreground">
-        Loading rule…
-      </MainContentWrapper>
-    )
+  if (!rule && status !== "failed") {
+    return <DetailSkeleton />
+  }
+
+  // `draft` is populated by an effect one tick after `rule` lands, so without
+  // this the not-found panel flashes for a frame on a successful load.
+  if (rule && !draft) {
+    return <DetailSkeleton />
   }
 
   if (!rule || !draft) {
@@ -69,12 +72,12 @@ const AutomationDetail = () => {
     setIsSaving(true)
     setNotice(null)
     try {
-      await dispatch(updateAutomationRule({ id: rule.id, changes: draft })).unwrap()
+      await dispatch(
+        updateAutomationRule({ id: rule.id, changes: draft })
+      ).unwrap()
       setNotice("Rule saved")
     } catch (error) {
-      setNotice(
-        error instanceof Error ? error.message : "Failed to save rule"
-      )
+      setNotice(error instanceof Error ? error.message : "Failed to save rule")
     } finally {
       setIsSaving(false)
     }
@@ -122,7 +125,12 @@ const AutomationDetail = () => {
                 aria-label="Enable rule"
               />
             </label>
-            <Button size="sm" onClick={handleSave} disabled={!canSave} loading={isSaving}>
+            <Button
+              size="sm"
+              onClick={handleSave}
+              disabled={!canSave}
+              loading={isSaving}
+            >
               <Save />
               Save
             </Button>

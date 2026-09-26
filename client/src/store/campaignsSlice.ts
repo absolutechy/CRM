@@ -7,11 +7,7 @@ import {
 } from "@reduxjs/toolkit"
 import { toast } from "sonner"
 
-import type {
-  Campaign,
-  CampaignMember,
-  CampaignResponse,
-} from "@/types/crm"
+import type { Campaign, CampaignMember, CampaignResponse } from "@/types/crm"
 import type { RootState } from "./index"
 import {
   addMembers as addMembersRequest,
@@ -139,7 +135,13 @@ export const changeMemberResponse = createAsyncThunk(
 
 export const removeCampaignMember = createAsyncThunk(
   "campaigns/removeMember",
-  async ({ campaignId, memberId }: { campaignId: string; memberId: string }) => {
+  async ({
+    campaignId,
+    memberId,
+  }: {
+    campaignId: string
+    memberId: string
+  }) => {
     await removeMemberRequest(campaignId, memberId)
     return memberId
   }
@@ -199,14 +201,26 @@ const campaignsSlice = createSlice({
       })
       .addCase(fetchCampaigns.rejected, (state, action) => {
         state.campaigns.status = "failed"
-        state.campaigns.error = action.error.message ?? "Failed to load campaigns"
+        state.campaigns.error =
+          action.error.message ?? "Failed to load campaigns"
         toast.error("Failed to load campaigns")
       })
 
       // fetchCampaign
+      // The detail page reads `status` to decide whether to show its skeleton,
+      // so the single-entity fetch has to drive it too — not just the list.
+      .addCase(fetchCampaign.pending, (state) => {
+        state.campaigns.status = "loading"
+        state.campaigns.error = null
+      })
       .addCase(fetchCampaign.fulfilled, (state, action) => {
         campaignsAdapter.upsertOne(state.campaigns, action.payload)
         state.campaigns.status = "succeeded"
+      })
+      .addCase(fetchCampaign.rejected, (state, action) => {
+        state.campaigns.status = "failed"
+        state.campaigns.error =
+          action.error.message ?? "Failed to load campaign"
       })
 
       // createCampaign
@@ -290,10 +304,8 @@ export default campaignsSlice.reducer
 
 // ---------------------------------------------------------------- selectors
 
-export const {
-  selectAll: selectAllCampaigns,
-  selectById: selectCampaignById,
-} = campaignsAdapter.getSelectors<RootState>((state) => state.campaigns.campaigns)
+export const { selectAll: selectAllCampaigns, selectById: selectCampaignById } =
+  campaignsAdapter.getSelectors<RootState>((state) => state.campaigns.campaigns)
 
 export const selectCampaignsStatus = (state: RootState) =>
   state.campaigns.campaigns.status
@@ -312,7 +324,8 @@ export const selectMemberCounts = createSelector(
   [selectAllCampaignMembers],
   (members) => {
     const counts: Record<string, number> = {}
-    for (const m of members) counts[m.campaignId] = (counts[m.campaignId] ?? 0) + 1
+    for (const m of members)
+      counts[m.campaignId] = (counts[m.campaignId] ?? 0) + 1
     return counts
   }
 )
@@ -324,7 +337,8 @@ export const selectCampaignPerformance = createSelector(
     const total = members.length
     const by = (r: CampaignResponse) =>
       members.filter((m) => m.response === r).length
-    const opened = by("opened") + by("clicked") + by("replied") + by("converted")
+    const opened =
+      by("opened") + by("clicked") + by("replied") + by("converted")
     const clicked = by("clicked") + by("replied") + by("converted")
     const replied = by("replied") + by("converted")
     const converted = by("converted")

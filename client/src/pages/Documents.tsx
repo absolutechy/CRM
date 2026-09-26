@@ -88,16 +88,11 @@ const Documents = () => {
           </Select>
         </div>
 
-        {status === "loading" && documents.length === 0 ? (
-          <div className="rounded-lg border border-border bg-surface p-8 text-center text-sm text-muted-foreground">
-            Loading documents…
-          </div>
-        ) : (
-          <DocumentsPanel
-            documents={visible}
-            emptyMessage="No documents match this filter."
-          />
-        )}
+        <DocumentsPanel
+          documents={visible}
+          isLoading={status === "loading" && documents.length === 0}
+          emptyMessage="No documents match this filter."
+        />
       </MainContentWrapper>
     </>
   )

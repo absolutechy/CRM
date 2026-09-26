@@ -85,31 +85,26 @@ const Companies = () => {
     <>
       <PageHeader />
       <MainContentWrapper className="space-y-6 px-8">
-        {status === "loading" && companies.length === 0 ? (
-          <div className="rounded-lg border border-border bg-surface p-8 text-center text-sm text-muted-foreground">
-            Loading companies…
-          </div>
-        ) : (
-          <DataTable
-            columns={columns}
-            data={companies}
-            searchPlaceholder="Search companies..."
-            onRowClick={(company) => navigate(`/companies/${company.id}`)}
-            emptyMessage="No companies yet."
-            actions={
-              <Button
-                size="sm"
-                onClick={() => {
-                  setEditing(null)
-                  setFormOpen(true)
-                }}
-              >
-                <Plus />
-                New company
-              </Button>
-            }
-          />
-        )}
+        <DataTable
+          isLoading={status === "loading" && companies.length === 0}
+          columns={columns}
+          data={companies}
+          searchPlaceholder="Search companies..."
+          onRowClick={(company) => navigate(`/companies/${company.id}`)}
+          emptyMessage="No companies yet."
+          actions={
+            <Button
+              size="sm"
+              onClick={() => {
+                setEditing(null)
+                setFormOpen(true)
+              }}
+            >
+              <Plus />
+              New company
+            </Button>
+          }
+        />
       </MainContentWrapper>
 
       <CompanyFormModal

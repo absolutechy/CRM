@@ -48,11 +48,14 @@ interface DocumentsPanelProps {
   fixedLink?: { type: "contact" | "company" | "lead"; id: string }
   showLinkedColumn?: boolean
   emptyMessage?: string
+  /** Forwarded to DataTable so the table chrome survives the initial load. */
+  isLoading?: boolean
 }
 
 const DocumentsPanel: React.FC<DocumentsPanelProps> = ({
   documents,
   fixedLink,
+  isLoading = false,
   showLinkedColumn = true,
   emptyMessage = "No documents yet.",
 }) => {
@@ -177,7 +180,10 @@ const DocumentsPanel: React.FC<DocumentsPanelProps> = ({
         enableSorting: false,
         header: "",
         cell: ({ row }) => (
-          <div className="flex justify-end" onClick={(e) => e.stopPropagation()}>
+          <div
+            className="flex justify-end"
+            onClick={(e) => e.stopPropagation()}
+          >
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
                 <Button
@@ -217,6 +223,7 @@ const DocumentsPanel: React.FC<DocumentsPanelProps> = ({
       <DataTable
         columns={columns}
         data={documents}
+        isLoading={isLoading}
         searchPlaceholder="Search documents..."
         emptyMessage={emptyMessage}
         actions={

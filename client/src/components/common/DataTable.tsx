@@ -47,6 +47,7 @@ import {
   TableRow,
 } from "@/components/ui/table"
 import { cn } from "@/lib/utils"
+import TableSkeleton from "@/components/common/skeletons/TableSkeleton"
 
 interface DataTableProps<TData, TValue> {
   columns: ColumnDef<TData, TValue>[]
@@ -60,6 +61,15 @@ interface DataTableProps<TData, TValue> {
   onRowClick?: (row: TData) => void
   emptyMessage?: string
   initialPageSize?: number
+  /**
+   * Draws placeholder rows instead of the body. The toolbar, headers and
+   * pagination stay mounted, so the page doesn't jump when data lands. Callers
+   * pass `status === "loading" && data.length === 0` so a background refetch
+   * never blanks rows the user is already reading.
+   */
+  isLoading?: boolean
+  /** How many placeholder rows to draw while loading. */
+  skeletonRows?: number
 }
 
 const PAGE_SIZES = [10, 20, 30, 50]
@@ -73,6 +83,8 @@ export function DataTable<TData, TValue>({
   onRowClick,
   emptyMessage = "No results found.",
   initialPageSize = 10,
+  isLoading = false,
+  skeletonRows = 5,
 }: DataTableProps<TData, TValue>) {
   const [sorting, setSorting] = useState<SortingState>([])
   const [columnFilters, setColumnFilters] = useState<ColumnFiltersState>([])
@@ -195,7 +207,12 @@ export function DataTable<TData, TValue>({
           </TableHeader>
 
           <TableBody>
-            {table.getRowModel().rows.length === 0 ? (
+            {isLoading ? (
+              <TableSkeleton
+                columnCount={table.getVisibleLeafColumns().length}
+                rowCount={skeletonRows}
+              />
+            ) : table.getRowModel().rows.length === 0 ? (
               <TableRow>
                 <TableCell
                   colSpan={columns.length}
@@ -216,7 +233,10 @@ export function DataTable<TData, TValue>({
                 >
                   {row.getVisibleCells().map((cell) => (
                     <TableCell key={cell.id}>
-                      {flexRender(cell.column.columnDef.cell, cell.getContext())}
+                      {flexRender(
+                        cell.column.columnDef.cell,
+                        cell.getContext()
+                      )}
                     </TableCell>
                   ))}
                 </TableRow>
@@ -229,9 +249,11 @@ export function DataTable<TData, TValue>({
       {/* Pagination */}
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <p className="text-sm text-muted-foreground">
-          {totalRows === 0
-            ? "No records"
-            : `Showing ${firstRow}–${lastRow} of ${totalRows}`}
+          {isLoading
+            ? "Loading…"
+            : totalRows === 0
+              ? "No records"
+              : `Showing ${firstRow}–${lastRow} of ${totalRows}`}
         </p>
 
         <div className="flex items-center gap-4">
