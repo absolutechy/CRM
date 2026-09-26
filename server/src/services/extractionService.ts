@@ -1,5 +1,4 @@
-import Anthropic from "@anthropic-ai/sdk"
-import { zodOutputFormat } from "@anthropic-ai/sdk/helpers/zod"
+import { GoogleGenAI } from "@google/genai"
 import { z } from "zod"
 import type { UserRole } from "@prisma/client"
 
@@ -67,46 +66,58 @@ Rules:
 
 // ---------------------------------------------------------------- client
 
-let client: Anthropic | null = null
+let client: GoogleGenAI | null = null
 
 /**
  * Lazy so the app boots without a key; mirrors getS3() in documentsService.
  */
-const getClient = (): Anthropic => {
+const getClient = (): GoogleGenAI => {
   if (client) return client
   if (!hasLlmConfig) {
     throw ApiError.badRequest(
-      "AI extraction is not configured — set ANTHROPIC_API_KEY"
+      "AI extraction is not configured — set GEMINI_API_KEY"
     )
   }
-  client = new Anthropic({ apiKey: env.ANTHROPIC_API_KEY })
+  client = new GoogleGenAI({ apiKey: env.GEMINI_API_KEY })
   return client
 }
 
 /** The seam the tests replace, so no test ever spends money or needs a key. */
 export type Extractor = (text: string) => Promise<ExtractionResult>
 
-export const claudeExtractor: Extractor = async (text) => {
-  const response = await getClient().messages.parse({
-    model: env.ANTHROPIC_MODEL,
-    max_tokens: 16000,
-    thinking: { type: "adaptive" },
-    system: SYSTEM,
-    messages: [{ role: "user", content: text }],
-    output_config: { format: zodOutputFormat(extractionResultSchema) },
+export const geminiExtractor: Extractor = async (text) => {
+  const response = await getClient().models.generateContent({
+    model: env.GEMINI_MODEL,
+    contents: text,
+    config: {
+      systemInstruction: SYSTEM,
+      responseMimeType: "application/json",
+      // Zod 4 emits standard JSON Schema, so the extraction contract and the
+      // validator below are generated from one definition.
+      responseJsonSchema: z.toJSONSchema(extractionResultSchema),
+    },
   })
 
-  if (response.stop_reason === "refusal") {
-    throw ApiError.badRequest(
-      "The model declined to process this text. Remove sensitive content and try again."
-    )
-  }
-
-  if (!response.parsed_output) {
+  const raw = response.text
+  if (!raw) {
     throw ApiError.badRequest("Could not read structured changes from that text")
   }
 
-  return response.parsed_output
+  let parsed: unknown
+  try {
+    parsed = JSON.parse(raw)
+  } catch {
+    throw ApiError.badRequest("The model returned malformed JSON")
+  }
+
+  // Re-validate: a schema hint is not a guarantee.
+  const result = extractionResultSchema.safeParse(parsed)
+  if (!result.success) {
+    logger.warn("Extraction failed validation", { issues: result.error.issues })
+    throw ApiError.badRequest("The model returned changes in an unexpected shape")
+  }
+
+  return result.data
 }
 
 // ---------------------------------------------------------------- resolution
@@ -204,7 +215,7 @@ export const createExtraction = async (
   input: unknown,
   currentUserId: string,
   _currentUserRole: UserRole,
-  extract: Extractor = claudeExtractor
+  extract: Extractor = geminiExtractor
 ) => {
   const data = extractionInputSchema.parse(input)
   const result = await extract(data.text)

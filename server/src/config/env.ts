@@ -59,13 +59,13 @@ const schema = z.object({
     .transform((v) => v === "true"),
 
   /**
-   * Claude API key for AI extraction. The Anthropic SDK reads this name from
-   * the environment itself. Optional — without it the extraction endpoint
-   * returns a clear error and the rest of the CRM is unaffected.
+   * Google Gemini API key for AI extraction. Optional — without it the
+   * extraction endpoint returns a clear error and the rest of the CRM is
+   * unaffected. Get one at https://aistudio.google.com/apikey
    */
-  ANTHROPIC_API_KEY: z.string().optional(),
+  GEMINI_API_KEY: z.string().optional(),
   /** Override to trade extraction quality against cost. */
-  ANTHROPIC_MODEL: z.string().default("claude-opus-5"),
+  GEMINI_MODEL: z.string().default("gemini-2.5-flash"),
 
   // Email is phase 8. Blank until then.
   SMTP_HOST: z.string().optional(),
@@ -100,8 +100,8 @@ export const hasStorageConfig = Boolean(
     env.S3_SECRET_ACCESS_KEY
 )
 
-/** AI extraction is available only when a Claude API key is present. */
-export const hasLlmConfig = Boolean(env.ANTHROPIC_API_KEY)
+/** AI extraction is available only when a Gemini API key is present. */
+export const hasLlmConfig = Boolean(env.GEMINI_API_KEY)
 
 /** Email is configured only when the SMTP host and credentials are present. */
 export const hasMailConfig = Boolean(env.SMTP_HOST && env.SMTP_USER)
