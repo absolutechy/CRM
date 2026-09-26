@@ -10,6 +10,7 @@ import CompanyFormModal from "@/components/pages/companies/CompanyFormModal"
 import { createCompanyColumns } from "@/components/pages/companies/columns"
 import { Button } from "@/components/ui/button"
 import { useAppDispatch, useAppSelector } from "@/store/hooks"
+import { usePermissions } from "@/hooks/usePermissions"
 import {
   createCompany,
   deleteCompany,
@@ -25,6 +26,7 @@ import type { Company } from "@/types/crm"
 const Companies = () => {
   const dispatch = useAppDispatch()
   const navigate = useNavigate()
+  const { canWriteSharedRecords } = usePermissions()
 
   const companies = useAppSelector(selectAllCompanies)
   const contacts = useAppSelector(selectAllContacts)
@@ -58,8 +60,9 @@ const Companies = () => {
           setFormOpen(true)
         },
         onDelete: (company) => setPendingDelete(company),
-      }),
-    [countsByCompany]
+      
+        canWrite: canWriteSharedRecords,}),
+    [countsByCompany, canWriteSharedRecords]
   )
 
   const handleSave = async (draft: CompanyDraft) => {
@@ -93,16 +96,18 @@ const Companies = () => {
           onRowClick={(company) => navigate(`/companies/${company.id}`)}
           emptyMessage="No companies yet."
           actions={
-            <Button
-              size="sm"
-              onClick={() => {
-                setEditing(null)
-                setFormOpen(true)
-              }}
-            >
-              <Plus />
-              New company
-            </Button>
+            canWriteSharedRecords ? (
+              <Button
+                size="sm"
+                onClick={() => {
+                  setEditing(null)
+                  setFormOpen(true)
+                }}
+              >
+                <Plus />
+                New company
+              </Button>
+            ) : undefined
           }
         />
       </MainContentWrapper>

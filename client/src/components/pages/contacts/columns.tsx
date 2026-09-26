@@ -19,12 +19,15 @@ interface ColumnOptions {
   companyName: (companyId: string | null) => string
   onEdit: (contact: Contact) => void
   onDelete: (contact: Contact) => void
+  /** Contacts are shared, so editing is limited to admins and managers. */
+  canWrite: boolean
 }
 
 export const createContactColumns = ({
   companyName,
   onEdit,
   onDelete,
+  canWrite,
 }: ColumnOptions): ColumnDef<Contact>[] => [
   {
     accessorKey: "name",
@@ -131,18 +134,22 @@ export const createContactColumns = ({
                 View profile
               </Link>
             </DropdownMenuItem>
-            <DropdownMenuItem onSelect={() => onEdit(row.original)}>
-              <Pencil />
-              Edit
-            </DropdownMenuItem>
-            <DropdownMenuSeparator />
-            <DropdownMenuItem
-              variant="destructive"
-              onSelect={() => onDelete(row.original)}
-            >
-              <Trash2 />
-              Delete
-            </DropdownMenuItem>
+            {canWrite && (
+              <>
+                <DropdownMenuItem onSelect={() => onEdit(row.original)}>
+                  <Pencil />
+                  Edit
+                </DropdownMenuItem>
+                <DropdownMenuSeparator />
+                <DropdownMenuItem
+                  variant="destructive"
+                  onSelect={() => onDelete(row.original)}
+                >
+                  <Trash2 />
+                  Delete
+                </DropdownMenuItem>
+              </>
+            )}
           </DropdownMenuContent>
         </DropdownMenu>
       </div>

@@ -79,16 +79,52 @@ test.describe("the API enforces role gates the UI calls into", () => {
   })
 })
 
-/**
- * Known gap, deliberately not failing the suite.
- *
- * components/common/RoleGuard.tsx exists but is imported nowhere, and no
- * sidebar item declares `roles` — so the client is role-blind. A rep is shown
- * "New contact", clicks it, and only then gets a 403 from the API. The data is
- * safe; the experience is not. Remove `.fixme` once the UI respects roles.
- */
-test.fixme("a rep is not offered actions they cannot perform", async ({ as }) => {
-  const page = await as("repA")
-  await page.goto("/contacts")
-  await expect(page.getByRole("button", { name: /new contact/i })).toHaveCount(0)
+test.describe("the UI only offers what the API allows", () => {
+  test("a rep is not offered contact write actions", async ({ as }) => {
+    const page = await as("repA")
+    await page.goto("/contacts")
+    await expect(page.getByText("E2E Shared Contact")).toBeVisible()
+    await expect(
+      page.getByRole("button", { name: /new contact/i })
+    ).toHaveCount(0)
+  })
+
+  test("an admin is offered them", async ({ as }) => {
+    const page = await as("admin")
+    await page.goto("/contacts")
+    await expect(
+      page.getByRole("button", { name: /new contact/i })
+    ).toBeVisible()
+  })
+
+  test("a rep is not offered company write actions", async ({ as }) => {
+    const page = await as("repA")
+    await page.goto("/companies")
+    await expect(
+      page.getByRole("button", { name: /new company/i })
+    ).toHaveCount(0)
+  })
+
+  test("automations are hidden from a rep's sidebar", async ({ as }) => {
+    const page = await as("repA")
+    await expect(page.getByRole("link", { name: "Contacts" })).toBeVisible()
+    await expect(
+      page.getByRole("link", { name: "Automations" })
+    ).toHaveCount(0)
+  })
+
+  test("a manager sees automations in the sidebar", async ({ as }) => {
+    const page = await as("manager")
+    await expect(page.getByRole("link", { name: "Automations" })).toBeVisible()
+  })
+
+  test("a rep typing the automations URL gets a refusal, not a broken page", async ({
+    as,
+  }) => {
+    const page = await as("repA")
+    await page.goto("/automations")
+    await expect(
+      page.getByText("You don't have access to this page")
+    ).toBeVisible()
+  })
 })

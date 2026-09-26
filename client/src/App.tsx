@@ -3,6 +3,7 @@ import { Route, Routes } from "react-router"
 
 import Layout from "@/layout/Layout"
 import AuthGuard from "@/components/common/AuthGuard"
+import RoleGuard from "@/components/common/RoleGuard"
 import { PageSkeleton } from "@/components/common/skeletons"
 import { useAppDispatch } from "@/store/hooks"
 import { fetchMe, sessionExpired } from "@/store/authSlice"
@@ -80,10 +81,21 @@ const App = () => {
                     <Route path="/documents" element={<Documents />} />
                     <Route path="/campaigns" element={<Campaigns />} />
                     <Route path="/campaigns/:id" element={<CampaignDetail />} />
-                    <Route path="/automations" element={<Automations />} />
+                    <Route
+                      path="/automations"
+                      element={
+                        <RoleGuard allowedRoles={["admin", "manager"]}>
+                          <Automations />
+                        </RoleGuard>
+                      }
+                    />
                     <Route
                       path="/automations/:id"
-                      element={<AutomationDetail />}
+                      element={
+                        <RoleGuard allowedRoles={["admin", "manager"]}>
+                          <AutomationDetail />
+                        </RoleGuard>
+                      }
                     />
                   </Routes>
                 </Suspense>

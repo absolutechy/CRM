@@ -17,6 +17,7 @@ import {
   SelectValue,
 } from "@/components/ui/select"
 import { useAppDispatch, useAppSelector } from "@/store/hooks"
+import { usePermissions } from "@/hooks/usePermissions"
 import {
   createContact,
   deleteContact,
@@ -36,6 +37,7 @@ import type { Contact, ContactStatus } from "@/types/crm"
 const Contacts = () => {
   const dispatch = useAppDispatch()
   const navigate = useNavigate()
+  const { canWriteSharedRecords } = usePermissions()
 
   const contacts = useAppSelector(selectAllContacts)
   const companies = useAppSelector(selectAllCompanies)
@@ -93,8 +95,9 @@ const Contacts = () => {
           setFormOpen(true)
         },
         onDelete: (contact) => setPendingDelete(contact),
+        canWrite: canWriteSharedRecords,
       }),
-    [companyName]
+    [companyName, canWriteSharedRecords]
   )
 
   const handleSave = async (draft: ContactDraft) => {
@@ -153,16 +156,18 @@ const Contacts = () => {
             </div>
           }
           actions={
-            <Button
-              size="sm"
-              onClick={() => {
-                setEditing(null)
-                setFormOpen(true)
-              }}
-            >
-              <Plus />
-              New contact
-            </Button>
+            canWriteSharedRecords ? (
+              <Button
+                size="sm"
+                onClick={() => {
+                  setEditing(null)
+                  setFormOpen(true)
+                }}
+              >
+                <Plus />
+                New contact
+              </Button>
+            ) : undefined
           }
         />
       </MainContentWrapper>

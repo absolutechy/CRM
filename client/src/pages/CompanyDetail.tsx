@@ -21,6 +21,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { DetailSkeleton } from "@/components/common/skeletons"
 import { COMPANY_STATUS_BADGE, formatCurrency } from "@/lib/crm"
 import { useAppDispatch, useAppSelector } from "@/store/hooks"
+import { usePermissions } from "@/hooks/usePermissions"
 import {
   fetchCompany,
   selectCompanyById,
@@ -34,6 +35,7 @@ import type { RootState } from "@/store"
 const CompanyDetail = () => {
   const { id = "" } = useParams()
   const navigate = useNavigate()
+  const { canWriteSharedRecords } = usePermissions()
   const dispatch = useAppDispatch()
 
   const company = useAppSelector((s: RootState) => selectCompanyById(s, id))
@@ -58,8 +60,9 @@ const CompanyDetail = () => {
         companyName: () => company?.name ?? "—",
         onEdit: (contact) => navigate(`/contacts/${contact.id}`),
         onDelete: (contact) => navigate(`/contacts/${contact.id}`),
+        canWrite: canWriteSharedRecords,
       }),
-    [company?.name, navigate]
+    [company?.name, navigate, canWriteSharedRecords]
   )
 
   const totalValue = orders.reduce((sum, o) => sum + o.amount, 0)

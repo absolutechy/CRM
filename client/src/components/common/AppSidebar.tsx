@@ -43,7 +43,9 @@ const menuItems: MenuItem[] = [
   { title: "Deals", icon: TrendingUp, url: "/deals" },
   { title: "Activity", icon: Activity, url: "/activities" },
   { title: "Campaigns", icon: Megaphone, url: "/campaigns" },
-  { title: "Automations", icon: Workflow, url: "/automations" },
+  // Every action on this page is admin/manager only, so a rep would land on
+  // a rules list they cannot change. RoleGuard covers direct URL access.
+  { title: "Automations", icon: Workflow, url: "/automations", roles: ["admin", "manager"] },
   { title: "Tasks", icon: CheckSquare, url: "/tasks" },
   // Notes is hidden — customer notes now live on the interaction timeline.
   // The /notes route still resolves, so existing local data isn't stranded.
