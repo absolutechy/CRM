@@ -24,7 +24,25 @@ npm run format        # prettier --write "**/*.{ts,tsx}"
 npm run typecheck     # tsc --noEmit
 npm run preview       # preview production build
 ```
-No test runner is configured yet.
+```bash
+npm run e2e          # playwright test (starts both servers itself)
+npm run e2e:ui       # interactive runner
+npm run e2e:report   # open the last HTML report
+```
+
+Browser tests live in [client/e2e](client/e2e) and drive the real stack: Vite on
+:5174 proxying to an API on :3100 backed by an isolated `crm_e2e` schema that
+[server/scripts/setup-e2e.ts](server/scripts/setup-e2e.ts) rebuilds each run.
+
+Two things to know before adding specs. There is deliberately **no
+`storageState`**: the API rotates refresh tokens and revokes the whole session
+family when a rotated one is replayed, so a saved cookie fails from the second
+test onward — `loginAs` signs in per test instead. And `page.request` is
+unauthenticated, because the access token lives in Redux memory rather than a
+cookie; use `apiAs(request, role)` from
+[client/e2e/fixtures.ts](client/e2e/fixtures.ts) for API calls.
+
+There is no unit-test runner for the client.
 
 To add a shadcn/ui component:
 ```bash

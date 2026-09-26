@@ -16,7 +16,9 @@ export default defineConfig({
     // matching the browser's origin (cookies with sameSite=lax just work).
     proxy: {
       "/api": {
-        target: "http://localhost:3000",
+        // E2E_API_PORT lets the Playwright suite point at its own API instance
+        // (see playwright.config.ts) without disturbing normal dev on :3000.
+        target: `http://localhost:${process.env.E2E_API_PORT ?? 3000}`,
         changeOrigin: true,
       },
     },
