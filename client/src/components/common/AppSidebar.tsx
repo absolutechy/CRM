@@ -20,6 +20,7 @@ import {
   CheckSquare,
   FolderOpen,
   Mail,
+  Sparkles,
 } from "lucide-react"
 import { Link, useLocation } from "react-router"
 import Logo from "@/assets/img/common/logo-new.png"
@@ -37,6 +38,7 @@ interface MenuItem {
 }
 
 const menuItems: MenuItem[] = [
+  { title: "Review", icon: Sparkles, url: "/review" },
   { title: "Leads", icon: UserPlus, url: "/leads" },
   { title: "Contacts", icon: Users, url: "/contacts" },
   { title: "Companies", icon: Building2, url: "/companies" },

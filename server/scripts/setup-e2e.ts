@@ -89,8 +89,59 @@ const main = async () => {
     },
   })
 
+  // A pending extraction so the review queue has something to render. Seeded
+  // directly rather than extracted, so the browser suite never calls Claude.
+  const repA = await prisma.user.findUnique({
+    where: { email: "e2e-rep-a@test.local" },
+  })
+  const sharedContact = await prisma.contact.findFirst({
+    where: { email: "e2e-contact@test.local" },
+  })
+  const e2eLead = await prisma.lead.create({
+    data: {
+      name: "E2E Review Lead",
+      email: "e2e-review-lead@test.local",
+      ownerId: repA!.id,
+    },
+  })
+
+  await prisma.extraction.create({
+    data: {
+      userId: repA!.id,
+      sourceLabel: "E2E Call Notes",
+      rawText: "Seeded transcript for the review queue end-to-end test.",
+      summary: "Seeded review batch",
+      changes: {
+        create: [
+          {
+            entity: "lead",
+            action: "update_field",
+            label: "Job title",
+            targetId: e2eLead.id,
+            field: "jobTitle",
+            currentValue: "",
+            proposedValue: "Head of Platform",
+            evidence: "he runs the platform team",
+          },
+          {
+            entity: "contact",
+            action: "update_field",
+            label: "Phone",
+            targetId: sharedContact!.id,
+            field: "phone",
+            currentValue: "",
+            proposedValue: "+44 20 7946 0123",
+            evidence: "reachable on 020 7946 0123",
+          },
+        ],
+      },
+    },
+  })
+
   await prisma.$disconnect()
-  console.log(`E2E schema ${SCHEMA} ready: ${USERS.length} users, 1 contact`)
+  console.log(
+    `E2E schema ${SCHEMA} ready: ${USERS.length} users, 1 contact, 1 pending extraction`
+  )
 }
 
 main().catch((error) => {

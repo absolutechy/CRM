@@ -1,6 +1,6 @@
 import type { Request, Response } from "express"
 
-import { env, hasMailConfig, hasStorageConfig } from "@/config/env"
+import { env, hasLlmConfig, hasMailConfig, hasStorageConfig } from "@/config/env"
 import { checkDatabase } from "@/lib/prisma"
 
 /**
@@ -25,6 +25,7 @@ export const show = async (_req: Request, res: Response) => {
       email: hasMailConfig
         ? { status: "configured" }
         : { status: "not-configured" },
+      ai: hasLlmConfig ? { status: "configured" } : { status: "not-configured" },
     },
   }
 

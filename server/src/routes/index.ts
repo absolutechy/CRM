@@ -13,6 +13,7 @@ import { emailsRouter } from "./emails"
 import { healthRouter } from "./health"
 import { leadsRouter } from "./leads"
 import { notificationsRouter } from "./notifications"
+import { proposalsRouter } from "./proposals"
 import { tasksRouter } from "./tasks"
 import { usersRouter } from "./users"
 
@@ -37,3 +38,4 @@ apiRouter.use("/email-templates", emailTemplatesRouter)
 apiRouter.use("/emails", emailsRouter)
 apiRouter.use("/automations", automationsRouter)
 apiRouter.use("/notifications", notificationsRouter)
+apiRouter.use("/proposals", proposalsRouter)

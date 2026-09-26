@@ -14,6 +14,7 @@ import dealsReducer from "./dealsSlice"
 import tasksReducer from "./tasksSlice"
 import usersReducer from "./usersSlice"
 import notificationsReducer from "./notificationsSlice"
+import proposalsReducer from "./proposalsSlice"
 
 export const store = configureStore({
   reducer: {
@@ -31,6 +32,7 @@ export const store = configureStore({
     campaigns: campaignsReducer,
     automations: automationsReducer,
     notifications: notificationsReducer,
+    proposals: proposalsReducer,
   },
 })
 

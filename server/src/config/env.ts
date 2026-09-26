@@ -58,6 +58,15 @@ const schema = z.object({
     .default("true")
     .transform((v) => v === "true"),
 
+  /**
+   * Claude API key for AI extraction. The Anthropic SDK reads this name from
+   * the environment itself. Optional — without it the extraction endpoint
+   * returns a clear error and the rest of the CRM is unaffected.
+   */
+  ANTHROPIC_API_KEY: z.string().optional(),
+  /** Override to trade extraction quality against cost. */
+  ANTHROPIC_MODEL: z.string().default("claude-opus-5"),
+
   // Email is phase 8. Blank until then.
   SMTP_HOST: z.string().optional(),
   SMTP_PORT: z.coerce.number().int().positive().optional(),
@@ -90,6 +99,9 @@ export const hasStorageConfig = Boolean(
     env.S3_ACCESS_KEY_ID &&
     env.S3_SECRET_ACCESS_KEY
 )
+
+/** AI extraction is available only when a Claude API key is present. */
+export const hasLlmConfig = Boolean(env.ANTHROPIC_API_KEY)
 
 /** Email is configured only when the SMTP host and credentials are present. */
 export const hasMailConfig = Boolean(env.SMTP_HOST && env.SMTP_USER)

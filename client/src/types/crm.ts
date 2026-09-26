@@ -478,3 +478,60 @@ export interface AutomationRule {
   createdAt: string
   updatedAt: string
 }
+
+// ---------------------------------------------------------------- AI proposals
+
+export type ProposalEntity = "contact" | "lead" | "deal" | "task" | "activity"
+
+export type ProposalAction =
+  | "create_record"
+  | "update_field"
+  | "move_stage"
+  | "change_status"
+  | "log_activity"
+  | "create_task"
+
+export type ProposalStatus =
+  | "pending"
+  | "approved"
+  | "rejected"
+  | "applied"
+  | "failed"
+
+/** One reviewable change Claude proposed from a pasted source. */
+export interface ProposedChange {
+  id: string
+  extractionId: string
+  entity: ProposalEntity
+  action: ProposalAction
+  targetId: string | null
+  label: string
+  field: string | null
+  currentValue: string | null
+  proposedValue: string | null
+  /** The quoted span this was derived from. */
+  evidence: string
+  status: ProposalStatus
+  reviewedById: string | null
+  reviewedAt: string | null
+  appliedAt: string | null
+  error: string | null
+  createdAt: string
+  extraction?: {
+    id: string
+    sourceLabel: string
+    summary: string
+    createdAt: string
+    userId: string
+  }
+}
+
+export interface Extraction {
+  id: string
+  userId: string
+  sourceLabel: string
+  rawText: string
+  summary: string
+  createdAt: string
+  changes: ProposedChange[]
+}

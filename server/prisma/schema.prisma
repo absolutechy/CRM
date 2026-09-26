@@ -39,6 +39,8 @@ model User {
   activities     Activity[]     @relation("ActivityActor")
   emailAccounts  EmailAccount[] @relation("EmailAccountOwner")
   emailMessages  EmailMessage[] @relation("EmailMessageOwner")
+  extractions    Extraction[]   @relation("ExtractionAuthor")
+  reviewedChanges ProposedChange[] @relation("ProposalReviewer")
   refreshTokens  RefreshToken[]
   notifications  Notification[]
 
@@ -696,4 +698,85 @@ model AutomationRun {
 
   @@index([ruleId, ranAt])
   @@map("automation_runs")
+}
+
+// ---------------------------------------------------------------- AI proposals
+
+enum ProposalEntity {
+  contact
+  lead
+  deal
+  task
+  activity
+}
+
+enum ProposalAction {
+  create_record
+  update_field
+  move_stage
+  change_status
+  log_activity
+  create_task
+}
+
+enum ProposalStatus {
+  pending
+  approved
+  rejected
+  applied
+  failed
+}
+
+/// One pasted input — an email thread, a transcript, a chat export — and the
+/// changes Claude proposed from it. Nothing here has touched a CRM record yet.
+model Extraction {
+  id          String   @id @default(cuid())
+  userId      String
+  user        User     @relation("ExtractionAuthor", fields: [userId], references: [id], onDelete: Cascade)
+  sourceLabel String   @default("")
+  /// Kept so a reviewer can always see what a proposal was derived from.
+  rawText     String
+  summary     String   @default("")
+  createdAt   DateTime @default(now())
+
+  changes ProposedChange[]
+
+  @@index([userId, createdAt])
+  @@map("extractions")
+}
+
+/// A single reviewable change. Applied only on approval, and only through the
+/// normal service layer so validation, ownership and automations all still run.
+model ProposedChange {
+  id           String     @id @default(cuid())
+  extractionId String
+  extraction   Extraction @relation(fields: [extractionId], references: [id], onDelete: Cascade)
+
+  entity   ProposalEntity
+  action   ProposalAction
+  /// Null for a create. Resolved server-side — the model never emits an id.
+  targetId String?
+  /// Human-readable name for the row, e.g. "Deal stage" or "New stakeholder".
+  label    String
+  field    String?
+  /// Snapshot taken when proposed; the left side of the diff, and the value
+  /// re-checked on approval so a stale proposal cannot clobber a newer edit.
+  currentValue  String?
+  proposedValue String?
+  /// Full arguments for the service call, validated with Zod before applying.
+  payload  Json    @default("{}")
+  /// The quoted snippet this came from. This is what makes a proposal reviewable.
+  evidence String  @default("")
+
+  status       ProposalStatus @default(pending)
+  reviewedById String?
+  reviewedBy   User?          @relation("ProposalReviewer", fields: [reviewedById], references: [id], onDelete: SetNull)
+  reviewedAt   DateTime?
+  appliedAt    DateTime?
+  error        String?
+  createdAt    DateTime       @default(now())
+
+  @@index([status])
+  @@index([extractionId])
+  @@map("proposed_changes")
 }

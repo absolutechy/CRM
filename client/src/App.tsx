@@ -19,6 +19,7 @@ import Login from "./pages/Login"
 // These must import module paths directly: a barrel re-export would pull every
 // page back into one chunk, which is why pages/index.ts no longer exists.
 const Dashboard = lazy(() => import("./pages/Dashboard"))
+const Review = lazy(() => import("./pages/Review"))
 const Leads = lazy(() => import("./pages/Leads"))
 const LeadDetail = lazy(() => import("./pages/LeadDetail"))
 const Contacts = lazy(() => import("./pages/Contacts"))
@@ -66,6 +67,7 @@ const App = () => {
                 <Suspense fallback={<PageSkeleton />}>
                   <Routes>
                     <Route path="/" element={<Dashboard />} />
+                    <Route path="/review" element={<Review />} />
                     <Route path="/leads" element={<Leads />} />
                     <Route path="/leads/:id" element={<LeadDetail />} />
                     <Route path="/contacts" element={<Contacts />} />
