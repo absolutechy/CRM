@@ -1,4 +1,4 @@
-import { GoogleGenAI } from "@google/genai"
+import { GoogleGenAI, Type, type Schema } from "@google/genai"
 import { z } from "zod"
 import type { UserRole } from "@prisma/client"
 
@@ -64,6 +64,68 @@ Rules:
 6. Commitments and next steps become tasks. Things that already happened become activities.
 7. Return an empty changes array if the text contains nothing actionable.`
 
+/**
+ * Gemini's response schema is an OpenAPI 3.0 subset, not JSON Schema. Zod 4's
+ * toJSONSchema() emits `$schema`, `additionalProperties` and `anyOf: [T, null]`
+ * for nullables — all three are rejected with "Request contains an invalid
+ * argument", so the shape is written here in Gemini's own dialect instead.
+ *
+ * This duplicates extractionResultSchema above. The duplication is deliberate
+ * and safe: the Zod schema still validates every reply, so any drift between
+ * the two fails loudly at parse time rather than silently mis-extracting.
+ */
+const RESPONSE_SCHEMA: Schema = {
+  type: Type.OBJECT,
+  properties: {
+    summary: {
+      type: Type.STRING,
+      description: "One line describing what the source text was about.",
+    },
+    changes: {
+      type: Type.ARRAY,
+      maxItems: "25",
+      items: {
+        type: Type.OBJECT,
+        properties: {
+          entity: {
+            type: Type.STRING,
+            enum: ["contact", "lead", "deal", "task", "activity"],
+          },
+          action: {
+            type: Type.STRING,
+            enum: [
+              "create_record",
+              "update_field",
+              "move_stage",
+              "change_status",
+              "log_activity",
+              "create_task",
+            ],
+          },
+          label: {
+            type: Type.STRING,
+            description: 'Short heading a reviewer reads, e.g. "Deal stage".',
+          },
+          targetHint: {
+            type: Type.STRING,
+            nullable: true,
+            description:
+              'Which record this refers to, in plain language, e.g. "Sarah at Acme". Null for a new record. Never an id.',
+          },
+          field: { type: Type.STRING, nullable: true },
+          proposedValue: { type: Type.STRING, nullable: true },
+          evidence: {
+            type: Type.STRING,
+            description: "The exact span from the source that supports this.",
+          },
+        },
+        required: ["entity", "action", "label", "targetHint", "field", "proposedValue", "evidence"],
+      },
+    },
+  },
+  required: ["summary", "changes"],
+}
+
 // ---------------------------------------------------------------- client
 
 let client: GoogleGenAI | null = null
@@ -93,10 +155,8 @@ export const geminiExtractor: Extractor = async (text) => {
       contents: text,
       config: {
         systemInstruction: SYSTEM,
-        responseMimeType: "application/json",
-        // Zod 4 emits standard JSON Schema, so the extraction contract and the
-        // validator below are generated from one definition.
-        responseJsonSchema: z.toJSONSchema(extractionResultSchema),
+          responseMimeType: "application/json",
+        responseSchema: RESPONSE_SCHEMA,
       },
     })
   } catch (error) {
