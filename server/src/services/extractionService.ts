@@ -83,7 +83,8 @@ const RESPONSE_SCHEMA: Schema = {
     },
     changes: {
       type: Type.ARRAY,
-      maxItems: "25",
+      // No maxItems: Gemini rejects it here (reported misleadingly as "high
+      // demand"). extractionResultSchema still caps the array at 25 on parse.
       items: {
         type: Type.OBJECT,
         properties: {
