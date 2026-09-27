@@ -77,7 +77,8 @@ const schema = z.object({
   OPENROUTER_MODEL: z
     .string()
     .default(
-      "nvidia/nemotron-3-super-120b-a12b:free,dots-studio/dots-3-note-preview:free,google/gemma-4-31b-it:free"
+      
+      "nvidia/nemotron-3-super-120b-a12b:free,qwen/qwen3.8-27b:free,nvidia/nemotron-3-ultra-550b-a55b:free,google/gemma-4-31b-it:free,dots-studio/dots-3-note-preview:free"
     ),
 
   // Email is phase 8. Blank until then.

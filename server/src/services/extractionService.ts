@@ -108,6 +108,30 @@ const responseJsonSchema = (): Record<string, unknown> => {
  */
 const MAX_OUTPUT_TOKENS = 4096
 
+/**
+ * Models in json_object mode routinely wrap the object in a markdown fence, or
+ * add a line of preamble, and JSON.parse then dies on the first character. So
+ * unwrap a fence, and otherwise fall back to the outermost brace pair.
+ */
+const parseJsonLoosely = (raw: string): unknown => {
+  const cleaned = raw
+    .trim()
+    .replace(/^```(?:json)?\s*/i, "")
+    .replace(/\s*```$/, "")
+    .trim()
+
+  try {
+    return JSON.parse(cleaned)
+  } catch {
+    const first = cleaned.indexOf("{")
+    const last = cleaned.lastIndexOf("}")
+    if (first === -1 || last <= first) {
+      throw new Error("no JSON object found in the response")
+    }
+    return JSON.parse(cleaned.slice(first, last + 1))
+  }
+}
+
 /** The seam the tests replace, so no test ever spends money or needs a key. */
 export type Extractor = (text: string) => Promise<ExtractionResult>
 
@@ -151,7 +175,7 @@ ${JSON.stringify(schema)}`,
 
       // Re-validate: a schema hint is never a guarantee, least of all here,
       // where a mis-routed model may return prose or a safety verdict.
-      const result = extractionResultSchema.safeParse(JSON.parse(raw))
+      const result = extractionResultSchema.safeParse(parseJsonLoosely(raw))
       if (!result.success) {
         throw new Error(
           `response did not match the expected shape: ${result.error.issues[0]?.message ?? "unknown"}`
