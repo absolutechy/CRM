@@ -65,7 +65,7 @@ const schema = z.object({
    */
   GEMINI_API_KEY: z.string().optional(),
   /** Override to trade extraction quality against cost. */
-  GEMINI_MODEL: z.string().default("gemini-2.5-flash"),
+  GEMINI_MODEL: z.string().default("gemini-3.8-flash"),
 
   // Email is phase 8. Blank until then.
   SMTP_HOST: z.string().optional(),

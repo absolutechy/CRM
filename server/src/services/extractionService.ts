@@ -86,17 +86,27 @@ const getClient = (): GoogleGenAI => {
 export type Extractor = (text: string) => Promise<ExtractionResult>
 
 export const geminiExtractor: Extractor = async (text) => {
-  const response = await getClient().models.generateContent({
-    model: env.GEMINI_MODEL,
-    contents: text,
-    config: {
-      systemInstruction: SYSTEM,
-      responseMimeType: "application/json",
-      // Zod 4 emits standard JSON Schema, so the extraction contract and the
-      // validator below are generated from one definition.
-      responseJsonSchema: z.toJSONSchema(extractionResultSchema),
-    },
-  })
+  let response
+  try {
+    response = await getClient().models.generateContent({
+      model: env.GEMINI_MODEL,
+      contents: text,
+      config: {
+        systemInstruction: SYSTEM,
+        responseMimeType: "application/json",
+        // Zod 4 emits standard JSON Schema, so the extraction contract and the
+        // validator below are generated from one definition.
+        responseJsonSchema: z.toJSONSchema(extractionResultSchema),
+      },
+    })
+  } catch (error) {
+    // Provider failures are configuration problems the operator can act on —
+    // a retired model, a bad key, a quota. Swallowing them into a generic 500
+    // costs a log dig every time, so surface the provider's own message.
+    const detail = error instanceof Error ? error.message : String(error)
+    logger.error("Gemini request failed", { model: env.GEMINI_MODEL, detail })
+    throw ApiError.badRequest(`AI extraction failed: ${extractProviderMessage(detail)}`)
+  }
 
   const raw = response.text
   if (!raw) {
@@ -118,6 +128,17 @@ export const geminiExtractor: Extractor = async (text) => {
   }
 
   return result.data
+}
+
+/** The SDK stringifies a JSON error body; pull out the human-readable part. */
+const extractProviderMessage = (detail: string): string => {
+  try {
+    const parsed = JSON.parse(detail) as { error?: { message?: string } }
+    if (parsed.error?.message) return parsed.error.message
+  } catch {
+    // Not JSON — fall through to the raw text.
+  }
+  return detail.slice(0, 300)
 }
 
 // ---------------------------------------------------------------- resolution
