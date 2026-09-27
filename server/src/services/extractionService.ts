@@ -1,4 +1,4 @@
-import { GoogleGenAI, Type, type Schema } from "@google/genai"
+import OpenAI from "openai"
 import { z } from "zod"
 import type { UserRole } from "@prisma/client"
 
@@ -64,131 +64,115 @@ Rules:
 6. Commitments and next steps become tasks. Things that already happened become activities.
 7. Return an empty changes array if the text contains nothing actionable.`
 
-/**
- * Gemini's response schema is an OpenAPI 3.0 subset, not JSON Schema. Zod 4's
- * toJSONSchema() emits `$schema`, `additionalProperties` and `anyOf: [T, null]`
- * for nullables — all three are rejected with "Request contains an invalid
- * argument", so the shape is written here in Gemini's own dialect instead.
- *
- * This duplicates extractionResultSchema above. The duplication is deliberate
- * and safe: the Zod schema still validates every reply, so any drift between
- * the two fails loudly at parse time rather than silently mis-extracting.
- */
-const RESPONSE_SCHEMA: Schema = {
-  type: Type.OBJECT,
-  properties: {
-    summary: {
-      type: Type.STRING,
-      description: "One line describing what the source text was about.",
-    },
-    changes: {
-      type: Type.ARRAY,
-      // No maxItems: Gemini rejects it here (reported misleadingly as "high
-      // demand"). extractionResultSchema still caps the array at 25 on parse.
-      items: {
-        type: Type.OBJECT,
-        properties: {
-          entity: {
-            type: Type.STRING,
-            enum: ["contact", "lead", "deal", "task", "activity"],
-          },
-          action: {
-            type: Type.STRING,
-            enum: [
-              "create_record",
-              "update_field",
-              "move_stage",
-              "change_status",
-              "log_activity",
-              "create_task",
-            ],
-          },
-          label: {
-            type: Type.STRING,
-            description: 'Short heading a reviewer reads, e.g. "Deal stage".',
-          },
-          targetHint: {
-            type: Type.STRING,
-            nullable: true,
-            description:
-              'Which record this refers to, in plain language, e.g. "Sarah at Acme". Null for a new record. Never an id.',
-          },
-          field: { type: Type.STRING, nullable: true },
-          proposedValue: { type: Type.STRING, nullable: true },
-          evidence: {
-            type: Type.STRING,
-            description: "The exact span from the source that supports this.",
-          },
-        },
-        required: ["entity", "action", "label", "targetHint", "field", "proposedValue", "evidence"],
-      },
-    },
-  },
-  required: ["summary", "changes"],
-}
-
 // ---------------------------------------------------------------- client
 
-let client: GoogleGenAI | null = null
+let client: OpenAI | null = null
 
 /**
  * Lazy so the app boots without a key; mirrors getS3() in documentsService.
+ * OpenRouter speaks the OpenAI wire format, so the official SDK works against
+ * it with only a base URL change — and swapping model is then an env var.
  */
-const getClient = (): GoogleGenAI => {
+const getClient = (): OpenAI => {
   if (client) return client
   if (!hasLlmConfig) {
     throw ApiError.badRequest(
-      "AI extraction is not configured — set GEMINI_API_KEY"
+      "AI extraction is not configured — set OPENROUTER_API_KEY"
     )
   }
-  client = new GoogleGenAI({ apiKey: env.GEMINI_API_KEY })
+  client = new OpenAI({
+    apiKey: env.OPENROUTER_API_KEY,
+    baseURL: "https://openrouter.ai/api/v1",
+  })
   return client
 }
+
+/**
+ * Standard JSON Schema, straight from the Zod definition, so the extraction
+ * contract and the validator below can never drift. `$schema` is stripped
+ * because strict structured-output validators reject unknown top-level keys.
+ */
+const responseJsonSchema = (): Record<string, unknown> => {
+  const schema = z.toJSONSchema(extractionResultSchema) as Record<string, unknown>
+  delete schema.$schema
+  return schema
+}
+
+/**
+ * Enough for 25 changes with evidence, and far below any model's ceiling.
+ *
+ * This must be set explicitly. Left unset, OpenRouter reserves the model's
+ * entire output window — 65k on some — and checks your balance against that
+ * reservation, so a free or low balance is rejected before a single token is
+ * generated ("you requested up to 65536 tokens, but can only afford 1933").
+ */
+const MAX_OUTPUT_TOKENS = 4096
 
 /** The seam the tests replace, so no test ever spends money or needs a key. */
 export type Extractor = (text: string) => Promise<ExtractionResult>
 
-export const geminiExtractor: Extractor = async (text) => {
-  let response
-  try {
-    response = await getClient().models.generateContent({
-      model: env.GEMINI_MODEL,
-      contents: text,
-      config: {
-        systemInstruction: SYSTEM,
-          responseMimeType: "application/json",
-        responseSchema: RESPONSE_SCHEMA,
-      },
-    })
-  } catch (error) {
-    // Provider failures are configuration problems the operator can act on —
-    // a retired model, a bad key, a quota. Swallowing them into a generic 500
-    // costs a log dig every time, so surface the provider's own message.
-    const detail = error instanceof Error ? error.message : String(error)
-    logger.error("Gemini request failed", { model: env.GEMINI_MODEL, detail })
-    throw ApiError.badRequest(`AI extraction failed: ${extractProviderMessage(detail)}`)
+export const openRouterExtractor: Extractor = async (text) => {
+  // Resolve the client first: a missing key is a configuration error, not a
+  // request failure, and must not be re-wrapped or logged as one.
+  const openai = getClient()
+  const schema = responseJsonSchema()
+
+  // Free models vary in what they support: some honour a strict json_schema,
+  // others only the looser json_object mode, and a few reject both. Try the
+  // stricter one and fall back, since the schema is also in the prompt and the
+  // reply is re-validated either way.
+  const modes: OpenAI.Chat.ChatCompletionCreateParams["response_format"][] = [
+    { type: "json_schema", json_schema: { name: "crm_changes", strict: true, schema } },
+    { type: "json_object" },
+  ]
+
+  let lastError: unknown
+  for (const response_format of modes) {
+    try {
+      const completion = await openai.chat.completions.create({
+        model: env.OPENROUTER_MODEL,
+        max_tokens: MAX_OUTPUT_TOKENS,
+        messages: [
+          { role: "system", content: `${SYSTEM}
+
+Return JSON matching this schema:
+${JSON.stringify(schema)}` },
+          { role: "user", content: text },
+        ],
+        response_format,
+      })
+
+      const raw = completion.choices[0]?.message.content
+      if (!raw) throw new Error("empty response")
+
+      // Re-validate: a schema hint is never a guarantee, least of all here.
+      const result = extractionResultSchema.safeParse(JSON.parse(raw))
+      if (!result.success) {
+        logger.warn("Extraction failed validation", {
+          model: env.OPENROUTER_MODEL,
+          mode: response_format?.type,
+          issues: result.error.issues.slice(0, 3),
+        })
+        throw new Error("response did not match the expected shape")
+      }
+      return result.data
+    } catch (error) {
+      if (error instanceof ApiError) throw error
+      lastError = error
+      logger.warn("Extraction attempt failed", {
+        model: env.OPENROUTER_MODEL,
+        mode: response_format?.type,
+        detail: error instanceof Error ? error.message.slice(0, 200) : String(error),
+      })
+    }
   }
 
-  const raw = response.text
-  if (!raw) {
-    throw ApiError.badRequest("Could not read structured changes from that text")
-  }
-
-  let parsed: unknown
-  try {
-    parsed = JSON.parse(raw)
-  } catch {
-    throw ApiError.badRequest("The model returned malformed JSON")
-  }
-
-  // Re-validate: a schema hint is not a guarantee.
-  const result = extractionResultSchema.safeParse(parsed)
-  if (!result.success) {
-    logger.warn("Extraction failed validation", { issues: result.error.issues })
-    throw ApiError.badRequest("The model returned changes in an unexpected shape")
-  }
-
-  return result.data
+  // Provider failures are usually operator-actionable — an unknown model, no
+  // credit, a rate limit — so surface the provider's own message rather than
+  // a generic 500 that costs a log dig every time.
+  const detail = lastError instanceof Error ? lastError.message : String(lastError)
+  logger.error("OpenRouter request failed", { model: env.OPENROUTER_MODEL, detail })
+  throw ApiError.badRequest(`AI extraction failed: ${extractProviderMessage(detail)}`)
 }
 
 /** The SDK stringifies a JSON error body; pull out the human-readable part. */
@@ -297,7 +281,7 @@ export const createExtraction = async (
   input: unknown,
   currentUserId: string,
   _currentUserRole: UserRole,
-  extract: Extractor = geminiExtractor
+  extract: Extractor = openRouterExtractor
 ) => {
   const data = extractionInputSchema.parse(input)
   const result = await extract(data.text)

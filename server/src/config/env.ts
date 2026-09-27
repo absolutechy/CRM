@@ -59,13 +59,14 @@ const schema = z.object({
     .transform((v) => v === "true"),
 
   /**
-   * Google Gemini API key for AI extraction. Optional — without it the
-   * extraction endpoint returns a clear error and the rest of the CRM is
-   * unaffected. Get one at https://aistudio.google.com/apikey
+   * OpenRouter API key for AI extraction. Optional — without it the extraction
+   * endpoint returns a clear error and the rest of the CRM is unaffected.
+   * Get one at https://openrouter.ai/keys
    */
-  GEMINI_API_KEY: z.string().optional(),
-  /** Override to trade extraction quality against cost. */
-  GEMINI_MODEL: z.string().default("gemini-3.5-flash-lite"),
+  OPENROUTER_API_KEY: z.string().optional(),
+  /** Any OpenRouter model id. "openrouter/free" auto-routes across free models,
+   * which survives the per-model rate limits a free account runs into. */
+  OPENROUTER_MODEL: z.string().default("openrouter/free"),
 
   // Email is phase 8. Blank until then.
   SMTP_HOST: z.string().optional(),
@@ -100,8 +101,8 @@ export const hasStorageConfig = Boolean(
     env.S3_SECRET_ACCESS_KEY
 )
 
-/** AI extraction is available only when a Gemini API key is present. */
-export const hasLlmConfig = Boolean(env.GEMINI_API_KEY)
+/** AI extraction is available only when an OpenRouter key is present. */
+export const hasLlmConfig = Boolean(env.OPENROUTER_API_KEY)
 
 /** Email is configured only when the SMTP host and credentials are present. */
 export const hasMailConfig = Boolean(env.SMTP_HOST && env.SMTP_USER)
