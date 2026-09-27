@@ -117,51 +117,54 @@ export const openRouterExtractor: Extractor = async (text) => {
   const openai = getClient()
   const schema = responseJsonSchema()
 
-  // Free models vary in what they support: some honour a strict json_schema,
-  // others only the looser json_object mode, and a few reject both. Try the
-  // stricter one and fall back, since the schema is also in the prompt and the
-  // reply is re-validated either way.
-  const modes: OpenAI.Chat.ChatCompletionCreateParams["response_format"][] = [
-    { type: "json_schema", json_schema: { name: "crm_changes", strict: true, schema } },
-    { type: "json_object" },
-  ]
+  const models = env.OPENROUTER_MODEL.split(",")
+    .map((m) => m.trim())
+    .filter(Boolean)
 
   let lastError: unknown
-  for (const response_format of modes) {
+  for (const model of models) {
     try {
       const completion = await openai.chat.completions.create({
-        model: env.OPENROUTER_MODEL,
+        model,
         max_tokens: MAX_OUTPUT_TOKENS,
         messages: [
-          { role: "system", content: `${SYSTEM}
+          {
+            role: "system",
+            content: `${SYSTEM}
 
 Return JSON matching this schema:
-${JSON.stringify(schema)}` },
+${JSON.stringify(schema)}`,
+          },
           { role: "user", content: text },
         ],
-        response_format,
+        // json_object rather than a strict json_schema: it is the mode every
+        // capable free model supports, the schema is in the prompt anyway, and
+        // the reply is re-validated below regardless.
+        response_format: { type: "json_object" },
       })
 
-      const raw = completion.choices[0]?.message.content
-      if (!raw) throw new Error("empty response")
+      const raw = completion.choices?.[0]?.message?.content
+      if (!raw) {
+        // Typically a reasoning model that spent max_tokens thinking.
+        throw new Error("model returned no content")
+      }
 
-      // Re-validate: a schema hint is never a guarantee, least of all here.
+      // Re-validate: a schema hint is never a guarantee, least of all here,
+      // where a mis-routed model may return prose or a safety verdict.
       const result = extractionResultSchema.safeParse(JSON.parse(raw))
       if (!result.success) {
-        logger.warn("Extraction failed validation", {
-          model: env.OPENROUTER_MODEL,
-          mode: response_format?.type,
-          issues: result.error.issues.slice(0, 3),
-        })
-        throw new Error("response did not match the expected shape")
+        throw new Error(
+          `response did not match the expected shape: ${result.error.issues[0]?.message ?? "unknown"}`
+        )
       }
+
+      logger.info("Extraction succeeded", { model, changes: result.data.changes.length })
       return result.data
     } catch (error) {
       if (error instanceof ApiError) throw error
       lastError = error
-      logger.warn("Extraction attempt failed", {
-        model: env.OPENROUTER_MODEL,
-        mode: response_format?.type,
+      logger.warn("Extraction model failed, trying the next", {
+        model,
         detail: error instanceof Error ? error.message.slice(0, 200) : String(error),
       })
     }
@@ -171,7 +174,7 @@ ${JSON.stringify(schema)}` },
   // credit, a rate limit — so surface the provider's own message rather than
   // a generic 500 that costs a log dig every time.
   const detail = lastError instanceof Error ? lastError.message : String(lastError)
-  logger.error("OpenRouter request failed", { model: env.OPENROUTER_MODEL, detail })
+  logger.error("Every extraction model failed", { models, detail })
   throw ApiError.badRequest(`AI extraction failed: ${extractProviderMessage(detail)}`)
 }
 

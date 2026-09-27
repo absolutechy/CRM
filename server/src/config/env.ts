@@ -64,9 +64,21 @@ const schema = z.object({
    * Get one at https://openrouter.ai/keys
    */
   OPENROUTER_API_KEY: z.string().optional(),
-  /** Any OpenRouter model id. "openrouter/free" auto-routes across free models,
-   * which survives the per-model rate limits a free account runs into. */
-  OPENROUTER_MODEL: z.string().default("openrouter/free"),
+  /**
+   * Comma-separated OpenRouter model ids, tried in order. A list rather than
+   * one id because free models rate-limit constantly, so a single name fails
+   * often.
+   *
+   * Do NOT use "openrouter/free": it auto-routes across every free model,
+   * including ones that cannot do this job — a content-safety classifier that
+   * replies "User Safety: safe", and reasoning models that spend the whole
+   * token budget thinking and return empty content.
+   */
+  OPENROUTER_MODEL: z
+    .string()
+    .default(
+      "nvidia/nemotron-3-super-120b-a12b:free,dots-studio/dots-3-note-preview:free,google/gemma-4-31b-it:free"
+    ),
 
   // Email is phase 8. Blank until then.
   SMTP_HOST: z.string().optional(),
